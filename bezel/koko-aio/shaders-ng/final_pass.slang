@@ -561,7 +561,15 @@ vec4 fn_pixel_grid(vec2 in_coords, vec3 pixel_in, float min_inLum, float max_inL
                 float triad_stagger_offset =  is_even * pi * (PIXELGRID_OFFSET_CORE);
             //get 3 sines with applied the optional staggered offset for slotmask, and single phosphors staggering for y deconvergence.
                 vec3 decon_stagger = vec3( PIXELGRID_DECON_R_H, PIXELGRID_DECON_G_H, PIXELGRID_DECON_B_H) ; //* (pixel_in/max_inLum) ;
-                vec3 rgb_h_sin = sin( (freq_base_core.y * interlacing_adapt_period) + triad_stagger_offset - decon_stagger + vScanlineAlternateOffset );
+                
+                #ifdef MOIRE_MITIGATION
+                    #define IS_EVEN float(sin(vPG_freq_base_screen_unfloored.x * vPG_offsets_and_size.a) > 0.5)
+                    float moire_mitigation_sweet_spot = IS_EVEN * MOIRE_SWEET_SPOT;
+                    vec3 rgb_h_sin = sin( (freq_base_core.y * interlacing_adapt_period) + triad_stagger_offset - decon_stagger + vScanlineAlternateOffset + moire_mitigation_sweet_spot );
+                #else
+                    vec3 rgb_h_sin = sin( (freq_base_core.y * interlacing_adapt_period) + triad_stagger_offset - decon_stagger + vScanlineAlternateOffset);
+                #endif
+                    
             //make it positve with doubled frequency:
                 rgb_h_sin = (rgb_h_sin * rgb_h_sin);
                         
@@ -707,20 +715,16 @@ vec4 fn_pixel_grid(vec2 in_coords, vec3 pixel_in, float min_inLum, float max_inL
     //mask posterization experiment:
         //mask = floor(mask*16.0)/16.0;
         //mask = pow(mask, vec3(0.5));
-        
 
-    
     //Apply Overmask:
         mask = PIXELGRID_OVERMASK * (mask - 0.5) + 0.5;
         pixel_in = mix(pixel_in, pixel_in * PIXELGRID_OVERMASK, PIXELGRID_OVERMASK);
-  
     
     //Apply the mask to pixel_in and clamp the minimum to the unexcited grille.
-    vec3 mask_and_grille = max(mask * pixel_in, rgb_grille * PIXELGRID_BASAL_GRID*0.0025);
-
+        vec3 mask_and_grille = max(mask * pixel_in, rgb_grille * PIXELGRID_BASAL_GRID*0.0025);
 
     //return it with alpha channel containing the mask itself, so that halo can selectively light it.
-    return vec4( mask_and_grille , dot(rgb_h, vec3(0.3333)));
+        return vec4( mask_and_grille , dot(rgb_h, vec3(0.3333)));
 }
 
 
@@ -943,9 +947,15 @@ vec3 light_over_image(vec3 light, vec3 image, float black_illumination) {
     //Simulates illumination.
     //It works by adding the light on the image.
     //It will add less light on dark colors (
-    vec3 light_on_black = black_illumination * light;
-    return image.rgb +  ( (light - light_on_black ) * image.rgb ) + light_on_black;
     
+    //mitigate clipping by lowering light on bright images:
+    light = light * (1-   (max(image.r,image.g),image.b)       )     ;
+
+    
+    vec3 light_on_black = black_illumination * light;
+    vec3 modulated_on_black = image.rgb +  ( (light - 0.0 ) * image.rgb ) + light_on_black;
+    
+    return modulated_on_black;
 }
 
 vec3 ambi_blend_image(vec4 image, vec3 ambi, float blend_mode) {
@@ -1207,7 +1217,6 @@ void main() {
     //Dynamic lum dependant full screen zoom?
         if (DO_DYNZOOM == 1.0)
             co_content = zoom(co_content, get_dyn_zoom(avglum_pass) );
-
     
     //Create an alpha mask to write content into, it holds opacity info that will be used to compose:
         if (DO_CURVATURE == 1.0)  {
@@ -1243,7 +1252,8 @@ void main() {
             //Ambient light
             if (DO_AMBILIGHT == 1.0) {
                 pixel_ambi = texture(ambi_temporal_pass, vOutputCoord).rgb;
-                pixel_ambi += random_fast( (NOISEPOWER * NOISEPOWER_AMBI_MUL) * ((1-pixel_ambi.g) * (pixel_ambi.g*1 - pixel_ambi.r*0.125 -pixel_ambi.b*0.125  )    ) , 
+                if (DO_BG_IMAGE != 1.0)
+                    pixel_ambi += random_fast( (NOISEPOWER * NOISEPOWER_AMBI_MUL) * ((1-pixel_ambi.g) * (pixel_ambi.g*1 - pixel_ambi.r*0.125 -pixel_ambi.b*0.125  )    ) , 
                 vTexCoord * vDynamicSeed  ) ;
             
                 float  ambi_noise_power = (NOISEPOWER * NOISEPOWER_AMBI_MUL * (1-pixel_ambi.g) ) * //only middle green channel

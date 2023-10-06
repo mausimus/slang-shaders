@@ -163,6 +163,7 @@ layout(push_constant) uniform Push {
  	float BLOOM_QUALITY ; //1
 	float AMBI_ADD_ON_BLACK;
 	float AMBI_STRETCH;
+	float AMBI_STRETCH_VERTICAL;
 	float AMBI_INT_OFFSET ;
 	
 } params;
@@ -230,7 +231,6 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 	float DO_CURVATURE;
 	float GEOM_WARP_X;
 	float GEOM_WARP_Y;
-	float GEOM_CUT_EARS;
 	float GEOM_CORNER_SIZE;
 	float GEOM_CORNER_SMOOTH;
 
@@ -382,6 +382,8 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 	float PIXELGRID_GAMMA_H;
 	float PIXELGRID_GAMMA_W;
 	//float PIXELGRID_HMASK_NO_BRIGHT;
+	//float MOIRE_SWEET_SPOT;
+	
 	float PIXELGRID_BASAL_GRID;
 	float DELTA_RENDER_FORCE_REFRESH;
 	float DELTA_RENDER_CHECK_AREA;
@@ -484,7 +486,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter BLANK7 " " 0.0 0.0 1.0 1.0
 
 
-#pragma parameter TATE                     "★ Tate mode (0:disabled 1:auto 2:forced)"		0.0 	0.0 2.0 1.0
+#pragma parameter TATE                     "★ Tate mode (0:disabled 1:auto 2:forced)"		1.0 	0.0 2.0 1.0
 #pragma parameter BLANK7a " " 0.0 0.0 1.0 1.0
 
 
@@ -515,12 +517,13 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter PIXELGRID_MIN_H	        "           . Phosphors height Min"			0.2 0.00 1.0 0.05
 #pragma parameter PIXELGRID_MAX_H           "           . Phosphors height Max"			0.6 0.0 1.5 0.05
 #pragma parameter PIXELGRID_GAMMA_H         "           . Phosphors height min->max gamma:"	4.2 1.0 8.00 0.1
-#pragma parameter PIXELGRID_OFFSET_CORE     "           . Slotmask(-fake) offset (low => anti-moiree)" 0.0 0.0 1.0 0.01
 #pragma parameter PIXELGRID_NO_INTERBLEED_H	"           . Inter line extra steepness"		0.0 0.0 10.0 0.1
-#pragma parameter PIXELGRID_H_DEDOT			"           . Dedot mask between scanlines (use only if needed!)"	0.0 0.0 1.0 0.1
+//#pragma parameter MOIRE_SWEET_SPOT          "           . Moire mitigation sweet spot"      0.0  0.0 1.0 0.01
+#pragma parameter PIXELGRID_OFFSET_CORE     "           . Slotmask(-fake) offset" 0.0 0.0 1.0 0.01
 #pragma parameter PIXELGRID_DECON_R_H       "           . Deconvergence Y: R phosphor" 0.0 -1.6 1.6 0.1
 #pragma parameter PIXELGRID_DECON_G_H       "           . Deconvergence Y: G phosphor" 0.0 -1.6 1.6 0.1
-#pragma parameter PIXELGRID_DECON_B_H       "           . Deconvergence Y: B phosphor" 0.0 -1.6 1.6 0.1
+#pragma parameter PIXELGRID_DECON_B_H       "           . Deconvergence Y: B phosphor" 0.0   -1.6 1.6 0.1
+#pragma parameter PIXELGRID_H_DEDOT			"           . Dedot mask between scanlines (use only if needed!)"	0.0 0.0 1.0 0.1
 
 
 #pragma parameter BLANK12f " " 0.0 0.0 1.0 1.0
@@ -595,7 +598,6 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter DO_CURVATURE	     "★ Curvature/Border enable? (cu) ==>"			0.0   0.0 1.0 1.0
 #pragma parameter GEOM_WARP_X        "        Warp X"				0.28   0.0 6.0 0.01
 #pragma parameter GEOM_WARP_Y        "        Warp Y"				0.32   0.0 6.0 0.01
-#pragma parameter GEOM_CUT_EARS      "        Cut curvature ears"	1.4   1.0 10.0 0.01
 #pragma parameter GEOM_CORNER_SIZE   "        Corner radius"			0.005  0.005 0.1 0.001
 #pragma parameter GEOM_CORNER_SMOOTH "        Corner sharpness"			350.0 15.0 1000.0 1.0
 #pragma parameter BLANK14 " " 0.0 0.0 1.0 1.0
@@ -652,7 +654,8 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter AMBI_FALLOFF              "        Led power/falloff"			0.4  0.1  3.0     0.01
 #pragma parameter AMBI_POWER                "        Led Saturation"						1.8  0.0  100.0     0.05
 #pragma parameter AMBI_INT_OFFSET           "        Led internalness"              0.07 -1.0 1.0 0.01
-#pragma parameter AMBI_STRETCH              "        Widen lights"						0.0  0.0  1.0     0.01
+#pragma parameter AMBI_STRETCH              "        Widen lights (horizontal games)"	0.0  0.0  1.0     0.01
+#pragma parameter AMBI_STRETCH_VERTICAL     "        Widen lights (vertical games)"		0.5  0.0  1.0     0.01
 #pragma parameter AMBI_GAMMA                "        Output Gamma"						1.3  0.1  8.0     0.1
 #pragma parameter AMBI_OVER_BEZEL           "        Colorize Bezel"					0.2  0.0  5.0     0.05
 #pragma parameter AMBI_OVER_BEZEL_SIZE      "           . Colorization size"			0.15  0.0  0.5    0.001
