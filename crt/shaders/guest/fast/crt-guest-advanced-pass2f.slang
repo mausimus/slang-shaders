@@ -52,7 +52,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	float no_scanlines;
 	float intres;
 	float fcompat;
-	float smask_mit;	
+	float smask_mit;
+	float ssharp;
 } global;
 
 #pragma parameter fcompat "          Compatibility Mode (slower, use if glitchy)" 0.0 0.0 1.0 1.0 
@@ -130,6 +131,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter scan_falloff "          Scanline Falloff" 1.0 0.10 2.0 0.05
 #define scan_falloff        global.scan_falloff     // scanline falloff
+
+#pragma parameter ssharp "          Smart Sharpen Scanlines" 0.0 0.0 0.30 0.01
+#define ssharp global.ssharp
 
 #pragma parameter no_scanlines "          No-scanline mode" 0.0 0.0 1.5 0.05
 #define no_scanlines global.no_scanlines
@@ -461,7 +465,8 @@ vec3 Mask(vec2 pos, float mx, inout float swidth)
 	}
 	
 	swidth*=masksize;
-	return mask;
+	float maskmin = min(min(mask.r,mask.g),mask.b);
+	return (mask - maskmin) * (1.0 + (maskboost-1.0)) + maskmin;
 }
 
 float SlotMask(vec2 pos, float m, float swidth)
@@ -570,11 +575,11 @@ void main()
 	float same4 = COMPAT_TEXTURE(PrePassDontChange,pc4+yy).a;
 	float same5 = COMPAT_TEXTURE(PrePassDontChange,pc4+y2).a;
 	
-	float refresh1 = 30.0;
-	float refresh2 = round(TEX0.y*29.0);
+	float refresh1 = 60.0;
+	float refresh2 = round(TEX0.y*59.0);
 	
-	bool frames = (floor(mod(float(global.FrameCount), refresh1)) == refresh2);
-	bool not_same = (same2 + same3 + same4 + same5) > 0.25;
+	bool frames = (abs(floor(mod(float(global.FrameCount), refresh1)) - refresh2) < 0.001);
+	bool not_same = (same2 + same3 + same4 + same5) > 0.5;
 
 if ( not_same || frames || (interb && (no_scanlines < 0.025)) || global.fcompat > 0.5)
 
@@ -645,8 +650,11 @@ if ( not_same || frames || (interb && (no_scanlines < 0.025)) || global.fcompat 
 
 if (!interb)
 {	
-	float shape1 = mix(scanline1, scanline2, f);
-	float shape2 = mix(scanline1, scanline2, 1.0-f);	
+	vec3 luma = vec3(0.2126, 0.7152, 0.0722);	
+	float ssub = ssharp*max(abs(scolor1.x-scolor2.x), abs(dot(color1,luma)-dot(color2,luma)));
+
+	float shape1 = mix(scanline1, scanline2 + ssub * scolor1.x * 35.0, f);
+	float shape2 = mix(scanline1, scanline2 + ssub * scolor2.x * 35.0, 1.0-f);
 	
 	float wt1 = st(f);
 	float wt2 = st(1.0-f);
@@ -764,15 +772,16 @@ if(bloom > 0.025)
 	color = color + bloom * Bloom1;
 }
 
-	color = min(color, mix(one, cmask, mclip));
 	if (!interb) color = declip(color, pow(w3,0.60));
 
 	if (halation > 0.025) {
 		Bloom = mix(0.5*(Bloom + Bloom*Bloom), 0.75*Bloom*Bloom, colmx);
 		color = color + 0.75*(0.75+maxb)*Bloom*(0.4+sqrt(colmx))*mix(1.0,w3,0.5*colmx)*mix(one,cmask,0.35 + 0.4*maxb)*halation; }
 
-	Glow = mix(Glow, 0.25*color, 0.7*colmx);
+	Glow = mix(Glow, 0.25*color, colmx);
 	color = color + 0.5*glow*Glow;
+
+	color = min(color, mix(one, cmask, mclip));
 	
 	color = pow(color, vec3(1.0/gamma_out));
 	color = min(color, 1.0);
