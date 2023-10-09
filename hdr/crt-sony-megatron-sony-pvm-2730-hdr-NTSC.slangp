@@ -132,9 +132,10 @@ alias11 = ""
 float_framebuffer11 = "false"
 srgb_framebuffer11 = "false"
 
-hcrt_brightness = "0.150000"
-hcrt_colour_system = "3.000000"
-hcrt_expand_gamut = "1.000000"
+hcrt_colour_system = "1.000000"
+hcrt_paper_white_nits = "400.000000"
+hcrt_phosphor_set = "3.000000"
+
 hcrt_red_vertical_convergence = "-0.140000"
 hcrt_green_vertical_convergence = "0.000000"
 hcrt_blue_vertical_convergence = "0.000000"
