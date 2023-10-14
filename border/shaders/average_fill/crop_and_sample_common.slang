@@ -1,6 +1,6 @@
 // See compose.slang for copyright and other information.
 
-#include "../../../misc/shaders/crop_and_scale/crop_and_scale.slang"
+#include "../../../misc/shaders/input_transform/input_transform.slang"
 #include "parameters.slang"
 
 layout(push_constant) uniform Push {
@@ -8,7 +8,7 @@ layout(push_constant) uniform Push {
     uint Rotation;
     // Own settings
     float SAMPLE_SIZE;
-    // From crop and scale, cropping section
+    // From input transform library, cropping section
     float OS_CROP_TOP;
     float OS_CROP_BOTTOM;
     float OS_CROP_LEFT;

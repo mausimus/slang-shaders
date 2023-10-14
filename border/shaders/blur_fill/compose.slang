@@ -27,6 +27,7 @@
     strength of the blur.
 
     Changelog:
+    v1.9: Add shift option from input transform library.
     v1.8: Add overscale option from crop and scale library.
     v1.7: Refactor for new scaling library. Add rotation support.
     v1.6: Optimize. Update to new Pixel AA version. Tune default blur strength.
@@ -44,7 +45,7 @@
 #include "../../../pixel-art-scaling/shaders/pixel_aa/parameters.slang"
 // clang-format on
 
-#include "../../../misc/shaders/crop_and_scale/crop_and_scale.slang"
+#include "../../../misc/shaders/input_transform/input_transform.slang"
 #include "../../../pixel-art-scaling/shaders/pixel_aa/shared.slang"
 
 layout(push_constant) uniform Push {
@@ -55,18 +56,21 @@ layout(push_constant) uniform Push {
     // Own settings
     float FILL_GAMMA;
     float SAMPLE_SIZE;
-    // From crop and scale, scaling section
+    // From input transform library, scaling section
     float FORCE_ASPECT_RATIO;
     float ASPECT_H;
     float ASPECT_V;
     float FORCE_INTEGER_SCALING_H;
     float FORCE_INTEGER_SCALING_V;
     float OVERSCALE;
-    // From crop and scale, cropping section
+    // From input transform library, cropping section
     float OS_CROP_TOP;
     float OS_CROP_BOTTOM;
     float OS_CROP_LEFT;
     float OS_CROP_RIGHT;
+    // From input transform library, moving section
+    float SHIFT_H;
+    float SHIFT_V;
     float CENTER_AFTER_CROPPING;
     // From dual filter blur
     float BLUR_RADIUS;
@@ -101,7 +105,8 @@ void main() {
         vec2(param.FORCE_INTEGER_SCALING_H, param.FORCE_INTEGER_SCALING_V),
         param.OVERSCALE,
         /* output_size_is_final_viewport_size = */ false);
-    tx_coord = o2i(vTexCoord, param.InputSize.xy, crop, param.Rotation,
+    vec2 shift = vec2(param.SHIFT_H, param.SHIFT_V);
+    tx_coord = o2i(vTexCoord, param.InputSize.xy, crop, shift, param.Rotation,
                    param.CENTER_AFTER_CROPPING, scale_o2i);
     tx_per_px = scale_o2i * param.OutputSize.zw;
     tx_to_uv = param.InputSize.zw;

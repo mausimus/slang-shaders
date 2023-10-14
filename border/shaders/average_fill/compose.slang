@@ -1,7 +1,7 @@
 #version 450
 
 /*
-    Average fill v1.7 by fishku
+    Average fill v1.8 by fishku
     Copyright (C) 2023
     Public domain license (CC0)
 
@@ -27,6 +27,7 @@
     3 = Smooth angle-based blending
 
     Changelog:
+    v1.8: Add shift option from input transform library.
     v1.7: Add overscale option from crop and scale library.
     v1.6: Refactor for new scaling library. Add rotation support.
     v1.5: Optimize. Update to new Pixel AA version.
@@ -42,7 +43,7 @@
 #include "../../../pixel-art-scaling/shaders/pixel_aa/parameters.slang"
 // clang-format on
 
-#include "../../../misc/shaders/crop_and_scale/crop_and_scale.slang"
+#include "../../../misc/shaders/input_transform/input_transform.slang"
 #include "../../../pixel-art-scaling/shaders/pixel_aa/shared.slang"
 
 layout(push_constant) uniform Push {
@@ -55,18 +56,21 @@ layout(push_constant) uniform Push {
     float CORNER_BLEND_MODE;
     float FILL_GAMMA;
     float SAMPLE_SIZE;
-    // From crop and scale, scaling section
+    // From input transform library, scaling section
     float FORCE_ASPECT_RATIO;
     float ASPECT_H;
     float ASPECT_V;
     float FORCE_INTEGER_SCALING_H;
     float FORCE_INTEGER_SCALING_V;
     float OVERSCALE;
-    // From crop and scale, cropping section
+    // From input transform library, cropping section
     float OS_CROP_TOP;
     float OS_CROP_BOTTOM;
     float OS_CROP_LEFT;
     float OS_CROP_RIGHT;
+    // From input transform library, moving section
+    float SHIFT_H;
+    float SHIFT_V;
     float CENTER_AFTER_CROPPING;
     // From pixel AA
     float PIX_AA_SHARP;
@@ -84,11 +88,12 @@ layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 scale_o2i;
 layout(location = 2) out vec4 crop;
-layout(location = 3) out vec2 tx_coord;
-layout(location = 4) out vec2 tx_per_px;
-layout(location = 5) out vec2 tx_to_uv;
-layout(location = 6) out vec4 input_corners;
-layout(location = 7) out vec2 cropped_input_size;
+layout(location = 3) out vec2 shift;
+layout(location = 4) out vec2 tx_coord;
+layout(location = 5) out vec2 tx_per_px;
+layout(location = 6) out vec2 tx_to_uv;
+layout(location = 7) out vec4 input_corners;
+layout(location = 8) out vec2 cropped_input_size;
 
 void main() {
     gl_Position = global.MVP * Position;
@@ -102,7 +107,8 @@ void main() {
         vec2(param.FORCE_INTEGER_SCALING_H, param.FORCE_INTEGER_SCALING_V),
         param.OVERSCALE,
         /* output_size_is_final_viewport_size = */ false);
-    tx_coord = o2i(vTexCoord, param.InputSize.xy, crop, param.Rotation,
+    shift = vec2(param.SHIFT_H, param.SHIFT_V);
+    tx_coord = o2i(vTexCoord, param.InputSize.xy, crop, shift, param.Rotation,
                    param.CENTER_AFTER_CROPPING, scale_o2i);
     tx_per_px = scale_o2i * param.OutputSize.zw;
     tx_to_uv = param.InputSize.zw;
@@ -118,11 +124,12 @@ void main() {
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec2 scale_o2i;
 layout(location = 2) in vec4 crop;
-layout(location = 3) in vec2 tx_coord;
-layout(location = 4) in vec2 tx_per_px;
-layout(location = 5) in vec2 tx_to_uv;
-layout(location = 6) in vec4 input_corners;
-layout(location = 7) in vec2 cropped_input_size;
+layout(location = 3) in vec2 shift;
+layout(location = 4) in vec2 tx_coord;
+layout(location = 5) in vec2 tx_per_px;
+layout(location = 6) in vec2 tx_to_uv;
+layout(location = 7) in vec4 input_corners;
+layout(location = 8) in vec2 cropped_input_size;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Input;
 layout(set = 0, binding = 3) uniform sampler2D Top;
@@ -185,8 +192,8 @@ void main() {
             // Top left corner
             const vec3 top = textureLod(Top, vec2(0.5), BIG_NUMBER).rgb;
             const vec2 content_corner =
-                i2o(input_corners.xy, param.InputSize.xy, crop, param.Rotation,
-                    param.CENTER_AFTER_CROPPING, scale_o2i);
+                i2o(input_corners.xy, param.InputSize.xy, crop, shift,
+                    param.Rotation, param.CENTER_AFTER_CROPPING, scale_o2i);
             const vec2 viewport_corner = vec2(0.0, 0.0);
             FragColor = vec4(
                 blend_corner(left, top, cropped_input_size.y,
@@ -205,8 +212,8 @@ void main() {
             // Bottom left corner
             const vec3 bottom = textureLod(Bottom, vec2(0.5), BIG_NUMBER).rgb;
             const vec2 content_corner =
-                i2o(input_corners.xw, param.InputSize.xy, crop, param.Rotation,
-                    param.CENTER_AFTER_CROPPING, scale_o2i);
+                i2o(input_corners.xw, param.InputSize.xy, crop, shift,
+                    param.Rotation, param.CENTER_AFTER_CROPPING, scale_o2i);
             const vec2 viewport_corner = vec2(0.0, 1.0);
             FragColor = vec4(
                 blend_corner(left, bottom, cropped_input_size.y,
@@ -266,8 +273,8 @@ void main() {
             // Top right corner
             const vec3 top = textureLod(Top, vec2(0.5), BIG_NUMBER).rgb;
             const vec2 content_corner =
-                i2o(input_corners.zy, param.InputSize.xy, crop, param.Rotation,
-                    param.CENTER_AFTER_CROPPING, scale_o2i);
+                i2o(input_corners.zy, param.InputSize.xy, crop, shift,
+                    param.Rotation, param.CENTER_AFTER_CROPPING, scale_o2i);
             const vec2 viewport_corner = vec2(1.0, 0.0);
             FragColor = vec4(
                 blend_corner(right, top, cropped_input_size.y,
@@ -286,8 +293,8 @@ void main() {
             // Bottom right corner
             const vec3 bottom = textureLod(Bottom, vec2(0.5), BIG_NUMBER).rgb;
             const vec2 content_corner =
-                i2o(input_corners.zw, param.InputSize.xy, crop, param.Rotation,
-                    param.CENTER_AFTER_CROPPING, scale_o2i);
+                i2o(input_corners.zw, param.InputSize.xy, crop, shift,
+                    param.Rotation, param.CENTER_AFTER_CROPPING, scale_o2i);
             const vec2 viewport_corner = vec2(1.0, 1.0);
             FragColor = vec4(
                 blend_corner(right, bottom, cropped_input_size.y,
