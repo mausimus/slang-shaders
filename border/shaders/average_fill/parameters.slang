@@ -1,9 +1,9 @@
 // See compose.slang for copyright and other information.
 
 // clang-format off
-#pragma parameter AVERAGE_FILL_SETTINGS "=== Average fill v1.7 settings ===" 0.0 0.0 1.0 1.0
+#pragma parameter AVERAGE_FILL_SETTINGS "=== Average fill v1.8 settings ===" 0.0 0.0 1.0 1.0
 
-#include "../../../misc/shaders/crop_and_scale/parameters.slang"
+#include "../../../misc/shaders/input_transform/parameters.slang"
 
 #pragma parameter OTHER_SETTINGS "= Other parameters =" 0.0 0.0 1.0 1.0
 #pragma parameter EXTEND_H "Extend the fill horizontally" 1.0 0.0 1.0 1.0

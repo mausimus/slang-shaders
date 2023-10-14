@@ -1,7 +1,10 @@
 /*
-    Cropping and scaling library v1.1 by fishku
+    Input transformation library v1.2 by fishku
     Copyright (C) 2023
     Public domain license (CC0)
+
+    Apply cropping, scaling, and transformation operations to input viewport and
+    provide utility functions for coordinate mappings.
 
     This file acts like a library and should be included in another shader to be
     used. For example usages, see the border/blur_fill shaders.
@@ -12,17 +15,32 @@
     Features:
     - Cropping on each side
     - Centering of image after crop has been applied
+    - Additional translation in either direction
     - Forcing of a certain aspect ratio
     - Forcing of either vert. or horiz. integer scaling, or both
-    - Rotation support (0, 90, 180, 270 degrees).
+    - Rotation support (0, 90, 180, 270 degrees) -- all "vertical" and
+      "horizontal" paramaters are transformed accordingly.
     - Overscaling
 
     Refactored from the version that used to be in the blur_fill shader.
 
     Changelog:
+    v1.2: Rename to "input transform". Add translation option.
     v1.1: Add overscaling option. Unify parameters.
     v1.0: Initial conversion from blur_fill release. Add rotation support.
 */
+
+vec2 get_rotated_size(vec2 x, uint rotation) {
+    switch (rotation) {
+        case 0:
+        case 2:
+        default:
+            return x;
+        case 1:
+        case 3:
+            return x.yx;
+    }
+}
 
 vec4 get_rotated_crop(vec4 crop, uint rotation) {
     switch (rotation) {
@@ -38,15 +56,17 @@ vec4 get_rotated_crop(vec4 crop, uint rotation) {
     }
 }
 
-vec2 get_rotated_size(vec2 x, uint rotation) {
+vec2 get_rotated_vector(vec2 x, uint rotation) {
     switch (rotation) {
         case 0:
-        case 2:
         default:
             return x;
         case 1:
+            return vec2(-x.y, x.x);
+        case 2:
+            return -x;
         case 3:
-            return x.yx;
+            return vec2(x.y, -x.x);
     }
 }
 
@@ -59,13 +79,15 @@ vec4 get_input_corners(vec2 input_size, vec4 crop, uint rotation) {
 }
 
 // Get adjusted center in input pixel coordinate system.
-vec2 get_input_center(vec2 input_size, vec4 crop, uint rotation,
+vec2 get_input_center(vec2 input_size, vec4 crop, vec2 shift, uint rotation,
                       float center_after_cropping) {
     crop = get_rotated_crop(crop, rotation);
-    return center_after_cropping > 0.5
-               ? 0.5 * vec2(crop.y + input_size.x - crop.w,
-                            crop.x + input_size.y - crop.z)
-               : vec2(0.49999) * input_size;
+    shift = get_rotated_vector(shift, rotation);
+    return (center_after_cropping > 0.5
+                ? 0.5 * vec2(crop.y + input_size.x - crop.w,
+                             crop.x + input_size.y - crop.z)
+                : vec2(0.49999) * input_size) -
+           shift;
 }
 
 // Scaling from unit output to pixel input space.
@@ -128,18 +150,19 @@ vec2 get_scale_o2i(vec2 input_size, vec2 output_size, vec4 crop, uint rotation,
 // coord_in_input_space = o2i(coord_in_output_space)
 // This is used to sample from the input texture in the output pass.
 // Version where scale is passed in.
-vec2 o2i(vec2 x, vec2 input_size, vec4 crop, uint rotation,
+vec2 o2i(vec2 x, vec2 input_size, vec4 crop, vec2 shift, uint rotation,
          float center_after_cropping, vec2 scale_o2i) {
-    return (x - 0.49999) * scale_o2i +
-           get_input_center(input_size, crop, rotation, center_after_cropping);
+    return (x - 0.49999) * scale_o2i + get_input_center(input_size, crop, shift,
+                                                        rotation,
+                                                        center_after_cropping);
 }
 
 // Version that computes scale.
-vec2 o2i(vec2 x, vec2 input_size, vec2 output_size, vec4 crop, uint rotation,
-         float center_after_cropping, float force_aspect_ratio, vec2 aspect,
-         vec2 force_integer_scaling, float overscale,
+vec2 o2i(vec2 x, vec2 input_size, vec2 output_size, vec4 crop, vec2 shift,
+         uint rotation, float center_after_cropping, float force_aspect_ratio,
+         vec2 aspect, vec2 force_integer_scaling, float overscale,
          bool output_size_is_final_viewport_size) {
-    return o2i(x, input_size, crop, rotation, center_after_cropping,
+    return o2i(x, input_size, crop, shift, rotation, center_after_cropping,
                get_scale_o2i(input_size, output_size, crop, rotation,
                              center_after_cropping, force_aspect_ratio, aspect,
                              force_integer_scaling, overscale,
@@ -148,24 +171,22 @@ vec2 o2i(vec2 x, vec2 input_size, vec2 output_size, vec4 crop, uint rotation,
 
 // From pixel input to unit output space.
 // Version where scale is passed in.
-vec2 i2o(vec2 x, vec2 input_size, vec4 crop, uint rotation,
+vec2 i2o(vec2 x, vec2 input_size, vec4 crop, vec2 shift, uint rotation,
          float center_after_cropping, vec2 scale_o2i) {
-    return (x - get_input_center(input_size, crop, rotation,
+    return (x - get_input_center(input_size, crop, shift, rotation,
                                  center_after_cropping)) /
                scale_o2i +
            0.49999;
 }
 
 // Version that computes scale.
-vec2 i2o(vec2 x, vec2 input_size, vec2 output_size, vec4 crop, uint rotation,
-         float center_after_cropping, float force_aspect_ratio, vec2 aspect,
-         vec2 force_integer_scaling, float overscale,
+vec2 i2o(vec2 x, vec2 input_size, vec2 output_size, vec4 crop, vec2 shift,
+         uint rotation, float center_after_cropping, float force_aspect_ratio,
+         vec2 aspect, vec2 force_integer_scaling, float overscale,
          bool output_size_is_final_viewport_size) {
-    return (x - get_input_center(input_size, crop, rotation,
-                                 center_after_cropping)) /
+    return i2o(x, input_size, crop, shift, rotation, center_after_cropping,
                get_scale_o2i(input_size, output_size, crop, rotation,
                              center_after_cropping, force_aspect_ratio, aspect,
                              force_integer_scaling, overscale,
-                             output_size_is_final_viewport_size) +
-           0.49999;
+                             output_size_is_final_viewport_size));
 }
