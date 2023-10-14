@@ -1,7 +1,7 @@
 #version 450
 
 /*
-    Pixel AA v1.3 by fishku
+    Pixel AA v1.4 by fishku
     Copyright (C) 2023
     Public domain license (CC0)
 
@@ -24,6 +24,8 @@
     subpixel anti-aliasing, results are identical to the "pixellate" shader.
 
     Changelog:
+    v1.4: Enable subpixel sampling for all four pixel layout orientations,
+          including rotated screens.
     v1.3: Account for screen rotation in subpixel sampling.
     v1.2: Optimize and simplify algorithm. Enable sharpness < 1.0. Fix subpixel
           sampling bug.
@@ -41,7 +43,7 @@ layout(push_constant) uniform Push {
     float PIX_AA_SHARP;
     float PIX_AA_GAMMA;
     float PIX_AA_SUBPX;
-    float PIX_AA_SUBPX_BGR;
+    float PIX_AA_SUBPX_ORIENTATION;
 }
 param;
 
@@ -73,5 +75,5 @@ void main() {
     FragColor =
         pixel_aa(Source, tx_per_px, tx_to_uv, tx_coord, param.PIX_AA_SHARP,
                  param.PIX_AA_GAMMA > 0.5, param.PIX_AA_SUBPX > 0.5,
-                 param.PIX_AA_SUBPX_BGR > 0.5, param.Rotation);
+                 uint(param.PIX_AA_SUBPX_ORIENTATION), param.Rotation);
 }

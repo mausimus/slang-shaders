@@ -58,17 +58,18 @@ vec3 sample_aa(sampler2D tex, vec2 tx_per_px, vec2 tx_to_uv, vec2 tx_coord,
 // interpolation.
 vec4 pixel_aa(sampler2D tex, vec2 tx_per_px, vec2 tx_to_uv, vec2 tx_coord,
               float sharpness, bool gamma_correct, bool sample_subpx,
-              bool subpx_bgr, uint rotation) {
+              uint subpx_orientation, uint screen_rotation) {
     if (sample_subpx) {
         // Subpixel sampling: Shift the sampling by 1/3rd of an output pixel for
         // each subpixel, assuming that the output size is at monitor
         // resolution.
-        // Compensate for possible rotation of the screen in certain cores.
+        // Account for different subpixel orientations and also for a possible
+        // rotation of the screen in certain cores.
         const vec2 rotation_correction[] = {vec2(1.0, 0.0), vec2(0.0, 1.0),
                                             vec2(-1.0, 0.0), vec2(0.0, -1.0)};
         const vec2 sub_tx_offset =
             tx_per_px / 3.0 *
-            rotation_correction[(rotation + int(subpx_bgr) * 2) % 4];
+            rotation_correction[(screen_rotation + subpx_orientation) % 4];
         vec3 res;
         for (int i = -1; i < 2; ++i) {
             res[i + 1] = sample_aa(tex, tx_per_px, tx_to_uv,

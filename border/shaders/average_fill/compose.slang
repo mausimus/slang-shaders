@@ -75,7 +75,7 @@ layout(push_constant) uniform Push {
     // From pixel AA
     float PIX_AA_SHARP;
     float PIX_AA_SUBPX;
-    float PIX_AA_SUBPX_BGR;
+    float PIX_AA_SUBPX_ORIENTATION;
 }
 param;
 
@@ -247,7 +247,7 @@ void main() {
                 FragColor = pixel_aa(
                     Input, tx_per_px, tx_to_uv, tx_coord, param.PIX_AA_SHARP,
                     /* gamma_correct = */ false, param.PIX_AA_SUBPX > 0.5,
-                    param.PIX_AA_SUBPX_BGR > 0.5, param.Rotation);
+                    uint(param.PIX_AA_SUBPX_ORIENTATION), param.Rotation);
             }
         } else {
             if (extend_fill.y < 0.5) {
