@@ -21,10 +21,13 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 // 0 - only the space between dots is blending
 // 1 - all texels are blended
-#pragma parameter blending_mode "Blending Mode" 0.0 0.0 1.0 1.0            
+#pragma parameter blending_mode "Blending Mode" 0.0 0.0 1.0 1.0
 
 // The amount of alpha swapped between neighboring texels
 #pragma parameter adjacent_texel_alpha_blending "Neighbor Blending" 0.76 0.0 1.0 0.01
+
+// Set video scale when used in console-border shaders
+#pragma parameter video_scale "Video Scale" 3.0 2.0 20.0 1.0
 
 ///////////////////////////////////////////////////////////////////////////
 //                                                                       //
@@ -87,7 +90,7 @@ void main()
     blur_coords_lower_bound = vec2(0.0);
     blur_coords_upper_bound = texel * (registers.OutputSize.xy - vec2(2.0));
 
-    vec2 half_lcd_size = vec2(0.5) * ((registers.OriginalSize.xy * vec2(registers.video_scale)) / registers.OutputSize.xy);
+    vec2 half_lcd_size = vec2(0.5) * ((registers.OriginalSize.xy * registers.video_scale) / registers.OutputSize.xy);
     lcd_bounds_upleft = vec2(0.5) - half_lcd_size;
     lcd_bounds_downright = vec2(0.5) + half_lcd_size;
 }
