@@ -1,3 +1,21 @@
+vec3 smoothstep_fast(vec3 edge0, vec3 edge1, vec3 x) {
+  return clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+}
+
+float smoothstep_fast(float edge0, float edge1, float x) {
+  return clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+}
+
+vec2 smoothstep_fast(vec2 edge0, vec2 edge1, vec2 x) {
+  return clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+}
+
+
+float smoothstep_cos(float edge0, float edge1, float x) {
+  float t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+  return cos(t * pi) * -0.5 + 0.5;
+}
+
 vec3 texture_BILINEAR(sampler2D t, vec2 uv, vec4 texSize, float k) {
        uv = uv -texSize.zw*0.5*k;
        vec2 texelSize = texSize.zw * k;
@@ -222,7 +240,7 @@ vec3 pixel_push_luminance(vec3 c, float strength) {
 	//if (strength == 0.0) return c; //lighter without the check.
 	float whiteness = max(max(c.r, c.g), c.b);
 	whiteness = clamp(whiteness, 0.0, 1.0);
-	return c * (1+vec3((1-whiteness) * strength));
+	return c * (1 + ( (1-whiteness) * strength)	);
 }
 
 /*
@@ -387,6 +405,10 @@ bool is_interlaced() {
 	return (params.OriginalSize.y > MIN_LINES_INTERLACED);
 }
 
+bool pixelgrid_h_needed() {
+	return DO_PIXELGRID > 0.0 && DO_PIXELGRID_H > 0.0 && !(PIXELGRID_INTR_DISABLE_Y==1.0 && is_interlaced() );
+}
+
 float scale_to_range(float x, float dmin, float dmax) {
     //Scales 0..1 range to a..b range
     return ( (dmax-dmin) * x ) + dmin;
@@ -420,6 +442,12 @@ float normalize_range(float value, float min_in, float max_in) {
 	//Scales value in [min_in - max_in] to 0..1
 	return (value - min_in)  / (max_in - min_in);
 }
+
+vec3 contrast_with_pivot(vec3 x, float c, float p){
+	//c=1-->neutral
+	return (x-1+p) * c + p;
+}
+
 
 vec3 apply_contrast_brightness(vec3 c, float contrast, float brightness) {
    return scale_to_range_vec3(c, -contrast, 1+contrast) + brightness;
@@ -771,7 +799,7 @@ vec3 lanczos(sampler2D sampler_in, vec2 co, vec4 texsize, float sharpness ) {
 
 
 	vec3 blur9_x_box(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_x, float sharp_sub) {
-		sharp_sub = -2*sharp_sub+1;
+		//sharp_sub = -2*sharp_sub+1;
 		float resolution = sourcesize.x * sharpness_x;
 		vec3 color = vec3(0.0);
 		
@@ -788,7 +816,7 @@ vec3 lanczos(sampler2D sampler_in, vec2 co, vec4 texsize, float sharpness ) {
 	}
 
 	vec3 blur9_y_box(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_y, float sharp_sub) {
-		sharp_sub = -2*sharp_sub+1;
+		//sharp_sub = -2*sharp_sub+1;
 		float resolution = sourcesize.y * sharpness_y;
 		vec3 color = vec3(0.0);
 		vec2 off1 = vec2(0.0, 1.0 / resolution) ;
@@ -870,6 +898,43 @@ vec3 lanczos(sampler2D sampler_in, vec2 co, vec4 texsize, float sharpness ) {
 		return color;
 	}
 
+	vec3 blur9_x_box1tap(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_x) {
+		float resolution = sourcesize.x * sharpness_x;
+		vec3 color = vec3(0.0);
+		
+		vec2 off1 = vec2(1.0 / resolution, 0.0)  ;
+		vec2 off2 = vec2(2.0 / resolution, 0.0)  ;
+			
+		color += texture(image, uv).rgb        ;
+		color += texture(image, uv + off1).rgb ;
+		color += texture(image, uv - off1).rgb ;
+		color = color/3.0;
+		return color;
+	}
+	
+	
+vec3 blur_px(sampler2D smp, vec2 co, vec2 r) {
+    vec3 c=vec3(0.0);
+    //float c1 = 0.75;
+    //float c2 = 1.25;
+
+	#define c1 1.0
+	#define c2 1.0
+
+    c += texture(smp, co + vec2(0.0, 1.0) * r).rgb * c1;
+    c += texture(smp, co + vec2(0.7071, 0.7071) * r).rgb * c2;
+    c += texture(smp, co + vec2(1.0, 0.0) * r).rgb * c1 ;
+    c += texture(smp, co + vec2(0.7071, -0.7071) * r).rgb * c2;
+    c += texture(smp, co + vec2(0.0, -1.0) * r).rgb * c1;
+    c += texture(smp, co + vec2(-0.7071, -0.7071) * r).rgb * c2;
+    c += texture(smp, co + vec2(-1.0, 0.0) * r).rgb * c1;
+    c += texture(smp, co + vec2(-0.7071, 0.7071) * r).rgb * c2;
+
+    //vec3 c0 = texture(smp, co + vec2(0.0, 0.0) * r).rgb;
+    //return min(c0, c/8.0);
+    return c/8.0;
+}
+	
 	/*float is_scanline(vec2 uv){
 		return float(int(mod(uv.y * params.OutputSize.y , 2.0 )) !=0.0) ;
 	}
@@ -1028,6 +1093,7 @@ bool is_first_outside_rect(vec2 point, vec4 rect) {
 }
 
 
+
 // COLOR TOOLS
 	vec3 kelvin2rgb(float k) {
 	//Convert kelvin temperature to rgb factors
@@ -1061,7 +1127,8 @@ bool is_first_outside_rect(vec2 point, vec4 rect) {
 		pixel_out = pixel_push_luminance(pixel_out,LUMINANCE);
 
 	//Modify contrast and brightness
-		if (CONTRAST != 0.0 || BRIGHTNESS != 0.0)
+		//if (CONTRAST != 0.0 || BRIGHTNESS != 0.0) // TESTME which is faster?
+		if (abs(CONTRAST) + abs(BRIGHTNESS) > 0.0) //<- one of them is != 0.0
 			pixel_out.rgb = apply_contrast_brightness(pixel_out.rgb, CONTRAST, BRIGHTNESS);
 
 	//Modify color temperature
@@ -1079,20 +1146,16 @@ bool is_first_outside_rect(vec2 point, vec4 rect) {
 			lum=scale_to_range(lum, 0.0-bias.x, 1.0+bias.y);
 			pixel_in_hsv.y=1.0; //sat
 
-							//Mix hues in rgb colorspace:
-								vec3 pixel_rgb_hue1 = hsv2rgb( vec3(COLOR_MONO_HUE1, 1.0, pixel_in_hsv.z ) );
-								vec3 pixel_rgb_hue2 = hsv2rgb( vec3(COLOR_MONO_HUE2, 1.0, pixel_in_hsv.z ) );
-								vec3 pixel_rgb_hue12 = mix(pixel_rgb_hue2, pixel_rgb_hue1, vec3(lum));
-							//Mix original and colorized with a specified strength
-								pixel_out = mix(pixel_out, pixel_rgb_hue12, COLOR_MONO_COLORIZE);
-
-
-			//pixel_in_hsv.x = mix(COLOR_MONO_HUE2, COLOR_MONO_HUE1, lum); //hue
-			//pixel_out = mix(pixel_out, hsv2rgb(pixel_in_hsv), COLOR_MONO_COLORIZE);pk
+			//Mix hues in rgb colorspace:
+				vec3 pixel_rgb_hue1 = hsv2rgb( vec3(COLOR_MONO_HUE1, 1.0, pixel_in_hsv.z ) );
+				vec3 pixel_rgb_hue2 = hsv2rgb( vec3(COLOR_MONO_HUE2, 1.0, pixel_in_hsv.z ) );
+				vec3 pixel_rgb_hue12 = mix(pixel_rgb_hue2, pixel_rgb_hue1, vec3(lum));
+			//Mix original and colorized with a specified strength
+				pixel_out = mix(pixel_out, pixel_rgb_hue12, COLOR_MONO_COLORIZE);
 		}
 
 	//Modify saturation
-		if (!(SATURATION == 1.0)) {
+		if (SATURATION != 1.0) {
 			vec3 intensity = vec3(dot(pixel_out.rgb, W));
 			pixel_out.rgb = mix(intensity, pixel_out.rgb, SATURATION);
 		}
@@ -1100,37 +1163,79 @@ bool is_first_outside_rect(vec2 point, vec4 rect) {
 	return pixel_out;
 	}
 
-vec4 PG_get_hmask_preset() {
-    /* Common masks:
-    * 1 gm   : mask size = 2 | offsets=1,0,1  | width=0.3
-    * 2 gmx  : mask size = 3 | offsets=1,0,1  | width=0.25
-    * 3 rgb  : mask size = 3 | offsets=0,1,2  | width=0.25
-    * 4 rgbx : mask size = 4 | offsets=0,1,2  | width=0.20
-    * 3 rbg  : mask size = 3 | offsets=0,1,2  | width=0.25
-    * 4 rbgx : mask size = 4 | offsets=0,1,2  | width=0.20
-	* 5 wx   : mask size = 2 | offsets=0.3,0.3,0.3
-    */
+vec4 PG_get_hmask_preset_floored() {
     if (PIXELGRID_H_PRST == 0.0) // manual mask and size
         return vec4( PIXELGRID_R_SHIFT, PIXELGRID_G_SHIFT, PIXELGRID_B_SHIFT, PIXELGRID_H_COUNT);
     
     if (PIXELGRID_H_PRST == 1.0)
-        return vec4( vec3(1,0,1), 2); // gm, mask size 2
+        return vec4( vec3(0,
+						  1,
+						  0), 2); // gm, mask size 2
 
     if (PIXELGRID_H_PRST == 2.0)
-        return vec4( vec3(1,0,1), 3); //gmx, mask size 3
+        return vec4( vec3(2.5,
+						  1.5,
+						  2.5), 3); //gmx, mask size 3
 
     if (PIXELGRID_H_PRST == 3.0)
-        return vec4( vec3(0,1,2), 3); //rgb, mask size 3
+        return vec4( vec3(1.5,
+						  2.5,
+						  3.5), 3); //rgb, mask size 3
 
     if (PIXELGRID_H_PRST == 4.0)
-        return vec4( vec3(0,1,2), 4); //rgbx, mask size 4
+        return vec4( vec3(2.0,
+						  3.0,
+						  4.0), 4); //rgbx, mask size 4
 
     if (PIXELGRID_H_PRST == 5.0)
-        return vec4( vec3(0,2,1), 3); //rbg, mask size 3
+        return vec4( vec3(1.5,
+						  3.5,
+						  2.5), 3); //rbg, mask size 3
 
     if (PIXELGRID_H_PRST == 6.0)
-        return vec4( vec3(0,2,1), 4); //rbgx, mask size 4
-		
-    if (PIXELGRID_H_PRST == 7.0)
-        return vec4( vec3(0.3,0.3,0.3), 2); //WX, mask size 2
+        return vec4( vec3(2.0,
+						  4.0,
+						  3.0), 4); //rbgx, mask size 4
+
+    //if (PIXELGRID_H_PRST == 7.0) // Implicit, because we need a default return value (DX/D3D)
+        return vec4( vec3(0.0), 2); //WX, mask size 2
+}
+
+vec4 PG_get_hmask_preset_unfloored() {
+    if (PIXELGRID_H_PRST == 0.0) // manual mask and size
+        return vec4( PIXELGRID_R_SHIFT, PIXELGRID_G_SHIFT, PIXELGRID_B_SHIFT, PIXELGRID_H_COUNT);
+
+    if (PIXELGRID_H_PRST == 1.0)
+        return vec4( vec3(+0.25,
+						  -0.25,
+						  +0.25)*2, 2); // gm, mask size 2
+
+    if (PIXELGRID_H_PRST == 2.0)
+        return vec4( vec3(+1/6.0,
+						  -1/6.0,
+						  +1/6.0)*3, 3); //gmx, mask size 3
+
+    if (PIXELGRID_H_PRST == 3.0)
+        return vec4( vec3(-1/3.0,
+						  0.0,
+						  1/3.0)*3, 3); //rgb, mask size 3
+
+    if (PIXELGRID_H_PRST == 4.0)
+        return vec4( vec3(-1/4.0,
+						  0.0,
+						  +1/4.0)*4, 4); //rgbx, mask size 4
+
+    if (PIXELGRID_H_PRST == 5.0)
+        return vec4( vec3(-1/3.0,
+						  +1/3.0,
+						  0.0   )*3, 3); //rbg, mask size 3
+
+    if (PIXELGRID_H_PRST == 6.0)
+        return vec4( vec3(-1/4.0,
+						  +1/4.0,
+						  0.0   )*4, 4); //rbgx, mask size 4
+
+    //if (PIXELGRID_H_PRST == 7.0) // Implicit, because we need a default return value (DX/D3D)
+        return vec4( vec3(0.0), 2); //WX, mask size 2
+
 }
