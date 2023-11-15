@@ -1,4 +1,43 @@
-**koko-aio-slang parameters documentation**
+**koko-aio-slang documentation**
+
+**RETROARCH OUTPUT DRIVERS**
+    koko-aio does not work on d3d12 and glitches on d3d11 and d3d10.<br>
+    If you absolutely need it (Xbox?), you can edit the file 
+    config\config-static.inc<br>
+    and turn the line:
+    // #define D3D_WORKAROUND <br>
+    into:<br>
+    #define D3D_WORKAROUND <br>
+    <br>
+    Vulkan ang Glcore have no problems, you can test both to see<br>
+    which performs better.<br>
+
+
+**USEFUL LOCATIONS/FILES:**
+
+    config/config-static.inc:
+        Some shader parameters can't be changed within retroarch,
+        use this file instead.
+        
+    config/config-user.txt:
+        shader parameters that can be changed within Retroarch.
+        can be set within this file too.
+        PRO: The shader will be faster
+        CON: The parameters can no longer be modified within Retroarch. 
+        
+    textures/background_under.png
+        This is the image that can is shown by default under the main content and under the bezel.
+        Read further for details. 
+        
+    textures/background_over.png
+        This is the image that can is shown by default over the main content and under the bezel.
+        Read further for details.
+        
+    textures/monitor_body_curved.png, textures/monitor_body_straight.png
+        This is the image used to draw the bezel.
+        Read further for details.
+        
+    
 
 **Color corrections:**<br>
     Modify luminance, saturation, contrast, brightness and color temperature
@@ -21,10 +60,10 @@
     Use it if you don't want to blur the image and you still don't like<br>
     jagged or too much pixelated images.<br>
 
-** RF Noise: **<br>
+** RF Noise:**<br>
     Emulates radio frequency noise with a given strength<br>
     
-**CVBS: NTSC color artifacts: **<br>
+**CVBS: NTSC color artifacts:**<br>
     Tries to emulate typical NTSC color artifacting without emulating<br>
     full NTSC coding/decoding pipeline.<br>
     While it improves the look of NTSC content, don't expect it to be<br>
@@ -85,7 +124,7 @@
 **Tate mode:**<br>
     Rotates mask and scanlines by 90°<br>
         
-**Low level phosphor grid**<br>
+**Low level phosphor grid:**<br>
     This is a way to produce horizontal masks, scanlines and aperturegrille/slotmasks.<br>
     Parameters are tricky to setup, but possibilities are mny more quality is good at 1080p<br>
     and hopefully great at higher resolutions.<br>
@@ -102,6 +141,14 @@
         X resolution: (core or screen) (**):
             0: Phosphors width will be relative to the pixel width of the core (game).
             1: Phosphors width will be relative to the pixel width of the screen.
+        Cell size multiplier x (neg=divider):
+            Multiply (or divide if the parameter is < 0) the mask (cell) size by a factor.
+            As stated(**), the size may be relative to screen or core, this allow you to
+            "zoom" the cell horizontally and can be useful if you have an HiDPI screen.
+            For example, you may choose to use screen sized masks and zoom them by a factor
+            of 2 or 3 to make room for phosphors and see them visually grow in width.
+            Likewise, you can use core/game(**) sized masks and divide them by a factor
+            if they appear too big.
         Mask type preset:
             You can have the shader generate a preconfigured mask for you:
             1:gm 2:gmx 3:rgb 4:rgbx 5:rbg 6:rbgx 7:wx
@@ -134,21 +181,6 @@
                 Since emulating phosphors with high Min-Max range changes the apparent gamma of the final image,
                 it is advised, if needed, to use this option to compensate, instead of the main gamma correction.
                 It is also a quick way to make the image brighter or darker.
-        Cell size multiplier x (neg=divider):
-            Multiply (or divide if the parameter is < 0) the mask (cell) size by a factor.
-            As stated(**), the size may be relative to screen or core, this allow you to
-            "zoom" the cell horizontally and can be useful if you have an HiDPI screen.
-            For example, you may choose to use screen sized masks and zoom them by a factor
-            of 2 or 3 to make room for phosphors and see them visually grow in width.
-            Likewise, you can use core/game(**) sized masks and divide them by a factor
-            if they appears too big.
-        Inter-cell extra steepness (for integer scaling)
-            When you set maximum width/height to anything > 0.5, the phosphor light will bleed over
-            the adiacent (left/right up/down) one so that they will start to blend togheter.
-            This option will avoid the bleeding.
-            You may want them to merge or not, depending on your preference to see a visible "grid"/lines.
-            This function is useful when you want to emulate handhelds screens using integer scaling, 
-            where cells are well separated.
         Black level of the unexcided phosphor grid
             Draw the vertical grid that hosts phosphors.
             This is likely to produce moiree when using X resolution = core
@@ -156,13 +188,29 @@
             
     Scanlines (*4)
             Scanlines emulation, set the strength of the effect here.
+        Use fake integer scanlines
+            Use a number of scanlines that perfectly fits the lines on the screen, not accurate,
+            but avoids moire and weavy artifacts.
         Phosphors height Min, Max:
             Try to keep scanline height between those values, depending on content brightness.
         Phosphors width min->max gamma:
             Since emulating phosphors with high Min-Max range changes the apparent gamma of the final image,
             it is advised, if needed, to use this option to compensate, instead of the main gamma correction.
             It is also a quick way to make the image brighter or darker.
-        Slotmask(-fake) offset(*):
+        Inter-line extra steepness (for integer scaling)
+            When you set maximum height to anything > 0.5, the phosphor light will bleed over
+            the adiacent (up/down) ones so that they will start to blend togheter.
+            This option will avoid the bleeding.
+            You may want them to blend or not, depending on your preference to keep scanlines separated.
+            This function is useful when you want to emulate handhelds screens using integer scaling, 
+            where cells are well separated.
+        Anti-moire sweet spot:
+            When dealing with curvature and deep scanlines gaps, moire patterns could appear on screen.
+            This setting staggers screen phosphors by the configured amount and that halps in mitigating
+            the disturbing effect.
+            I observed that a value of 0.17 does a good job for low-res content rendered at 1080p height.
+            Any value > 0.0 disables the, following functions: Slotmask(fake) and Deconvergence Y
+        Slotmask(fake) offset(*):
             This will cause every cell to be vertically shifted by the configured amount to
             emulate a slotmask phosphors layout.
             It is true that for accurate reproduction of them, slotmasks are commonly emulated
@@ -177,37 +225,33 @@
             While this does not exist at all in crt technology, it greatly mitigates the artifacts
             just explained while producing a fairly convincing effect, very similar to a screen
             with visible scanlines and visible slotmask.
-        Inter-cell extra steepness (for integer scaling)
-            When you set maximum width/height to anything > 0.5, the phosphor light will bleed over
-            the adiacent (left/right up/down) one so that they will start to blend togheter.
-            This option will avoid the bleeding.
-            You may want them to merge or not, depending on your preference to see a visible "grid"/lines.
-            This function is useful when you want to emulate handhelds screens using integer scaling, 
-            where cells are well separated.
-        Dedot mask between scanlines
-            When using Horizontal masks, you mai notice a disturbing dot pattern left between high
-            scanlines, that's the residual of horizontal mask.
-            Use this parameter to clear it and use it only if needed or it would have counter-effects.
-            Also, mutating dots to straight lines would make moiree more visible when using curvature.
         Deconvergence Y: R,G,B phosphor" 
             This emulates Y deconvergence on phosphor level rather than on image level as seen in
             the previous deconvergence section.
             Emulating deconvergence here is good because phosphors will be able to brighten the
             dark gap left by scanlines.
+        Dedot mask between scanlines
+            When using Horizontal masks, you mai notice a disturbing dot pattern left between high
+            scanlines, that's the residual of horizontal mask.
+            Use this parameter to clear it and use it only if needed or it would have counter-effects.
+            Also, mutating dots to straight lines would make moiree more visible when using curvature.
+
         
         
-    Interlace detect + Scanline alternate above # lines:
+    Interlace + Scanline alternate above # lines:
         koko-aio will mark a frame as interlaced and will alternate odd/even scanlines
         at odd/even frames when the number or lines is above the configured value.
-    Disable on interlaced screen:
-        You may want to avoid drawing scanlines gaps when interlaced content is found
+    Interlaced Scanlines? (-1=faker, -1=fake, 0=yes, 1=no):
+       0=yes:   Use interlaced scanlines, may need >1080p screen to avoid moire or weavy artifacts
+       1=no:    You may want to avoid drawing scanlines gaps when interlaced content is found
+      -1=fake:  Use a number of scanlines that perfectly fits the screen, a good glitches free tradeoff.
+      -2=faker: Use a number of scanlines that perfectly fits the screen * 1.5, another good (almost) glitches free tradeoff.
     Interlace Flicker (0=off,1=on,2=if interlaced):
         Since we can emulate scanline appearence, here we deal with interlaced content too.
         This setting emulates the flickering issues present on crt interlaced screens
         where the brighter lines flickers when they are near dark ones.
         You can choose to produce the flickering: never, always or only 
         when the input picture is considered interlaced.
-        The threshold for that is defined in config.inc with the parameter: MIN\_LINES\_INTERLACED.
     Interlace Flicker power: The strength of the effect.
 
     
@@ -229,10 +273,12 @@
             You can draw slotmasks at screen coordinates to emulate real crts or choose to paint
             them at core coordinates to have a more defined slotmask
             ...if you like slotmasks so much :-)
-        Vertical shift (for use with core resolution):
+        Vertical shift (neg = auto):
             This parameter allows you to move the whole vertical mask along the Y axis.
-            It is intended to be used with core resolution(*1) and integer divider/multiplier(*2)
-            to clear weird patterns from the screen when using slotmasks (*3) alongside scanline emulation (*4).
+            * When used with screen resolution(*1), a negative value will auto-select a shift that gives the sharpest shape.
+            * When used with core resolution(*1) and integer divider/multiplier(*2), it is useful to mitigate
+              weird patterns from the screen when using slotmasks (*3) alongside scanline emulation (*4).
+            
         Steepness: 
             The more, the thinner they will be.
             Setting this to very high values, may make them disappear unevenly.
@@ -342,7 +388,8 @@
 **Bezel:**<br>
     Draws a monitor frame with simulated reflections from the game content.<br>
     The monitor frame is an image loaded by the shader and is shipped<br>
-    in the "textures" shader subdirectory, named "monitor\_body.png"<br>
+    in the "textures" shader subdirectory, named:
+    monitor_body_curved.png and monitor_body_straight.png
     It has been made with the following rules that may come handy<br>
     only if you want to edit it; otherwise go on.<br>
     - The red channel represents the luminance information<br>
@@ -379,7 +426,11 @@
 
 **Backgound image:**<br>
     Draws an image on screen picked from the "textures" shader subdirectory,<br>
-    named: background.png<br><br>
+    named by default background_over.png and background_under.png<br>
+    <br>
+    Of course you can use other path/names, but then you have to edit the preset by modifying<br>
+    bg_over and/or bg_under.
+    <br>
     **-> It is needed that you set retroarch aspect to "Full" <-**<br>
     ( Settings, Video, Scaling, Aspect Ratio = Full )<br>
     The image is painted "under" the game content and under the monitor frame by<br>
@@ -395,11 +446,7 @@
     Rotate image mode
         This could be needed when dealing with vertical games.
         Use -1 to let the shader try to guess if the rotation is needed.
-    Wrap mode:
-        This feature is static, to use it 
-        you have to manually enable it by removing the leading: "//"
-        from "//#define ALLOW_BG_IMAGE_TEXTURE_WRAP_IN_SHADER" in config.inc
-        
+    Wrap mode:      
         What to do outside the image:
         0  Mirrored repeat because so is configured in main .slangp.
         1  Clamp to border and it means black.
@@ -540,7 +587,7 @@
     leading to a measurable power consumption reduction.<br>
     This feature can, however, produce artifacts in some cases, so the feature<br>
     is statically disabled by default by now.<br>
-    To use it, you have to manually switch, in file config.inc: <br>
+    To use it, you have to manually switch, in file config-static.inc: <br>
     #define DELTA_RENDER 0.0 <br>
     to <br>
     #define DELTA_RENDER 1.0 <br>
@@ -564,7 +611,7 @@
     
     This feature is static, to use it 
     you have to manually enable it by removing the leading: "//"
-    from "//#define ALLOW_ALT_BLANK" in config.inc
+    from "//#define ALLOW_ALT_BLANK" in config-static.inc
     
     Frame insertion strength:
         How much the line will be blanked.
