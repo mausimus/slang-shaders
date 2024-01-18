@@ -29,7 +29,7 @@ void main() {
       
       //Compute y flicker offset:
          float FlickerOffset = 0.0;
-         float line_tick = (params.OriginalSize.y > MIN_LINES_INTERLACED ) ? 1 : 2 ;
+         float line_tick = is_interlaced() ? 1 : 2 ;
          if (ModFlicker == 1.0 )
             FlickerOffset = params.OriginalSize.w/line_tick;
          else if (ModFlicker == 2.0)
@@ -38,7 +38,7 @@ void main() {
       //Export flicker coords for Fragment shader here:
          vFlickerCoords =  vec2(TexCoord.x, TexCoord.y + FlickerOffset);
          
-      vFlickering_power = DO_PIXELGRID * PIXELGRID_INTR_FLICK_POWR;
+      vFlickering_power = PIXELGRID_INTR_FLICK_POWR;
    }
 
 }
@@ -99,9 +99,11 @@ void main() {
    else 
       pixel_out = texture(Source, vTexCoord); //<-alpha carries ntsc artifacts mask
    
-   if (DO_RF_NOISE > 0.0)
-      pixel_out.rgb += vec3(random_fast(RF_NOISE_STRENGTH, vTexCoord * vDynamicSeed));
-
+   if (DO_RF_NOISE > 0.0) {
+      float anoise = random_fast(vTexCoord * vDynamicSeed);
+      anoise = scale_to_range(anoise, -RF_NOISE_STRENGTH, RF_NOISE_STRENGTH);
+      pixel_out.rgb += vec3(anoise);
+   }
    FragColor = pixel_out;
 }
 

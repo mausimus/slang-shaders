@@ -12,26 +12,32 @@
 #define CCUSTOM vec3(0.3,0.5,0.1)
 
 #define DEBUG_COLOR vec3(1.0)
-#define DEBUG_BLINK_TIME 30
+#define DEBUG_BLINK_TIME 100
 #define DEBUG_GRADIENT_STEPS 64
 
 
 
 //#define DEBUG
-  // #define DEBUG_COLOR_CALIB
-   #define DEBUG_TIME_FADE
-   //#define DEBUG_SOLID_COLOR
+   //#define DEBUG_COLOR_CALIB
+   //#define DEBUG_TIME_FADE
+   #define DEBUG_SOLID_COLOR
    //#define DEBUG_STEP_GRADIENT
    //#define DEBUG_STEP_GRADIENT_V
    //#define DEBUG_BLINK
    //#define DEBUG_BLINK_CIRCLE
+   //#define DEBUG_WALKING_CIRCLE
    //#define DEBUG_COLORWHEEL
    
    
 #include "config.inc"
 
-#define NTSC_FILTER_WIDTH_MAX 25
+#define NTSC_FILTER_WIDTH_MIN 5
+#define NTSC_FILTER_WIDTH_MAX 21
+
 #define NTSC_FILTER_MIDDLE NTSC_FILTER_WIDTH/2
+
+//Clamp min and max artifacts loop to unroll loops? Can't observe any speed increase (maybe a bit lower)
+//#define UNROLL_N
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -78,6 +84,9 @@ void main() {
       float N = NTSC_FILTER_WIDTH;
       //  Compute sampling weights
       int i = 0;
+      #ifdef UNROLL_N
+         N = clamp(N, NTSC_FILTER_WIDTH_MIN, NTSC_FILTER_WIDTH_MAX); //Hopefully help compiler to unroll better here
+      #endif
       for (float n = 0.0 ; n < N; n++) {
          int i = int(n);
          vNTSC_weights[i] = hann(n, N) * sinc(vNTSC_FILTER_FC * (n-NTSC_FILTER_MIDDLE));
@@ -108,6 +117,7 @@ layout(location = 0) out vec4 FragColor;
 
 layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D colortools_and_ntsc_passFeedback;
+layout(set = 0, binding = 4) uniform sampler2D avglum_passFeedback;
 
 
 vec3 colorwheel(vec2 uv){
@@ -119,16 +129,6 @@ vec3 colorwheel(vec2 uv){
    vec3 colHSV = vec3(ang, 1.0, dist);
    return hsv2rgb(colHSV);
 }
-
-//	Colorspace conversion matrix for YIQ-to-RGB
-const mat3 YIQ2RGB = mat3(1.000, 1.000, 1.000,
-                          0.956,-0.272,-1.106,
-                          0.621,-0.647, 1.703);
-
-const mat3 RGB2YIQ = mat3(
-         0.2989, 0.5959, 0.2115,
-         0.5870, -0.2744, -0.5229,
-         0.1140, -0.3216, 0.3114);
 
 
 #define pi10 pi*10
@@ -145,11 +145,18 @@ vec4 ntscdec(vec2 uv, vec3 RGB_ori) {
          float phase_shift_for_blur;
          
       int N = int(NTSC_FILTER_WIDTH);
+      #ifdef UNROLL_N
+         N = clamp(N, NTSC_FILTER_WIDTH_MIN, NTSC_FILTER_WIDTH_MAX); //Hopefully help compiler to unroll better here
+      #endif
       for (int n=0; n < N; n++) {
-         vec2 pos = uv + vec2((n-NTSC_FILTER_MIDDLE) * params.SourceSize.z, 0.0);
+         vec2 pos = uv + vec2( (n-NTSC_FILTER_MIDDLE)  * params.SourceSize.z  , 0.0);
          vec3 smp_mul_weight = vec3((texture(Source, pos).rgb * RGB2YIQ).x) * vNTSC_weights[n] ;
          
          float phase =  vSubcarrierFrequency_mul_size_mul_TAU * pos.x;
+
+
+         float carrier = (pos.x*params.SourceSize.x * NTSC_FILTER_SCF ) - (pos.y*params.SourceSize.y * NTSC_PHASE_SHIFT);
+         phase = carrier * (pi * (2/3.0));
          float phase_shift_for_blur = phase  + PHASE_SHIFT_FOR_BLUR_K;
          
          phase += ( pos.y * -pi10 ) * (NTSC_PHASE_SHIFT);
@@ -204,7 +211,7 @@ vec3 debug() {
       
    #elif defined DEBUG_BLINK
       if (mod(params.FrameCount, DEBUG_BLINK_TIME*2) < DEBUG_BLINK_TIME) 
-         pixel_debug = vec3(0.2) ;
+         pixel_debug = vec3(0.0) ;
       else 
          pixel_debug = DEBUG_COLOR;
    
@@ -213,6 +220,14 @@ vec3 debug() {
       float radius = 0.1;
       pixel_debug = vec3(1 - step(radius, length(center)));
       pixel_debug *= float( ( mod(params.FrameCount, DEBUG_BLINK_TIME * 2) < DEBUG_BLINK_TIME));
+      pixel_debug *= DEBUG_COLOR;
+      
+   #elif defined DEBUG_WALKING_CIRCLE
+      float speed = 4.0;
+      vec2 center = vec2(  mod(params.FrameCount*speed, params.SourceSize.x*1.2)/params.SourceSize.x  -0.1      , 0.5);
+      center = vTexCoord - center;
+      float radius = 0.05;
+      pixel_debug = vec3(1 - step(radius, length(center)));
       pixel_debug *= DEBUG_COLOR;
       
    #elif defined DEBUG_COLORWHEEL   
@@ -243,8 +258,164 @@ vec3 debug() {
    return pixel_debug;
 }
 
+
+bool first_in_range(float a, float lo, float hi) {
+   return (a > lo) && (a < hi);
+}
+
+vec3 pixel_dedither(sampler2D tex, vec2 coords, vec4 sourcesize, float tmin, float tmax, float strength1, float strength2) {
+   #define DX sourcesize.z
+   #define DY sourcesize.w
+   float accum_div1 = 0.0;
+   float accum_div2 = 0.0;
+   
+
+   vec3 p0 = texture(tex, coords).rgb;
+   
+//    Horizontal xoxox   
+      vec3 avg_x = vec3(0.0);
+      vec3 pxb = p0;                                                 // oxOxo
+      vec3 pxa = texture(tex, coords + vec2(-DX    ,0.0)).rgb; // oXoxo
+      vec3 pxc = texture(tex, coords + vec2(+DX    ,0.0)).rgb; // oxoXo
+      vec3 pxd = texture(tex, coords + vec2(-DX*2.0,0.0)).rgb; // Oxoxo
+      vec3 pxe = texture(tex, coords + vec2(+DX*2.0,0.0)).rgb; // oxoxO
+   
+      float dx1= dot(abs(pxb-pxa), vec3(1.0));
+      if (first_in_range(dx1,tmin,tmax) && pxa == pxc && (pxb == pxd || pxb == pxe)) {
+          avg_x = (pxa+pxb) /2.0;
+          accum_div1 += 1.0;
+       }
+ 
+//    Vertical
+      vec3 avg_y= vec3(0.0);
+      vec3 pyb = p0;
+      vec3 pya = texture(tex, coords + vec2(0.0, -DY    )).rgb;
+      vec3 pyc = texture(tex, coords + vec2(0.0, +DY    )).rgb;
+      vec3 pyd = texture(tex, coords + vec2(0.0, -DY*2.0)).rgb;
+      vec3 pye = texture(tex, coords + vec2(0.0, +DY*2.0)).rgb;
+   
+      float dy1= dot(abs(pya-pyb), vec3(1.0));
+      if (first_in_range(dy1,tmin,tmax) && pya == pyc && (pyb == pyd || pyb == pye)) {
+          avg_y = (pya+pyb) /2.0;
+          accum_div1 += 1.0;
+       }
+
+   vec3 avg_xy= vec3(0.0);
+   vec3 avg_yx= vec3(0.0);
+   
+   if (DEDITHER_STRENGTH2 > 0.0) {
+      vec3 pxyb = p0;
+      vec3 pxya = texture(tex, coords + vec2(-DX,     -DY    )).rgb;
+      vec3 pxyc = texture(tex, coords + vec2(+DX,     +DY    )).rgb;
+      vec3 pxyd = texture(tex, coords + vec2(+DX*2.0, +DY*2.0)).rgb;
+      vec3 pxye = texture(tex, coords + vec2(-DX*2.0, -DY*2.0)).rgb;
+
+      float dxy1= dot(abs(pxyb-pxya), vec3(1.0));
+      if (first_in_range(dxy1,tmin,tmax) && pxya == pxyc && (pxyb == pxyd || pxyb == pxye)) {
+         avg_xy = (pxya+pxyb) / 2.0;
+         accum_div2 += 1.0;
+      }
+
+      vec3 pxyb2 = p0;
+      vec3 pxya2 = texture(tex, coords + vec2(+DX,    -DY    )).rgb;
+      vec3 pxyc2 = texture(tex, coords + vec2(-DX,    +DY    )).rgb;
+      vec3 pxyd2 = texture(tex, coords + vec2(-DX*2.0,+DY*2.0)).rgb;
+      vec3 pxye2 = texture(tex, coords + vec2(+DX*2.0,-DY*2.0)).rgb;
+
+      float dxy12= dot(abs(pxyb2-pxya2), vec3(1.0));
+
+      if (first_in_range(dxy12,tmin,tmax) && pxya2 == pxyc2 && (pxyb2 == pxyd2 || pxyb2 == pxye)) {
+         avg_yx = (pxya2+pxyb2) / 2.0;
+         accum_div2 += 1.0;
+      }
+   }
+
+   //if (accum_div1 > 0.0) {
+      //pixel_out = (pxb + pxa + pxc + pya + pyc + pxya + pxyc + pxya2 + pxyc2) / 9.0;
+      //pixel_out = (pxb + pxa + pxc + pya + pyc ) / 5.0;
+      //pixel_out = mix(p0, (avg_x + avg_y + avg_xy + avg_yx) / accum_div, strength1);
+   //}
+   vec3 pixel_out = p0;
+   if (accum_div1 > 0.0)
+      pixel_out = mix(pixel_out, (avg_x + avg_y)   / accum_div1, strength1);
+   if (accum_div2 > 0.0)
+      pixel_out = mix(pixel_out, (avg_xy + avg_yx) / accum_div2, strength2);
+
+
+   return pixel_out;
+}
+
+
+
+vec3 persistence_v1(vec3 feedback, vec3 pixel_now, float start_decay, float end_decay, float motion_blur_cancel) {
+   //start_decay: is the initial decay, the fast one: 1.0 means instantaneous, try around 0.8
+   //end decay the higher, the more the persistance in the long run, try around 1.0;
+   //motion_blur_cancel: 0.0 means full blur on bright areas; try around 2.5
+
+   vec3 x=(feedback - pixel_now);
+   
+   vec3 a = vec3( 1 + start_decay );
+   vec3 b = vec3( end_decay );
+
+   //compute fade speed as an high gamma curve:
+   vec3 fade_speed=pow(a, pow(x,b) )-1;
+   
+   //higher speed is needed when composing over brighter colors to avoid motion blur
+   fade_speed = fade_speed + (pixel_now*motion_blur_cancel);
+   
+   //Ensure a minimum speed to reach 0.0 and clamp to 1.0 to avoid funky effects
+   float min_speed = 0.05  ;
+   fade_speed=clamp(fade_speed, min_speed, 1.0);
+   
+
+   //Compute the persistent light by mixing pixel current and previous one
+   vec3 pixel_persistent = mix(feedback, pixel_now, fade_speed );  
+   
+   //blend only if we are fading out
+      vec3 light_fading_out = vec3(greaterThan(feedback, pixel_now));
+      return mix(pixel_now, pixel_persistent, light_fading_out);
+   }
+   
+
+
+vec3 persistence(vec3 feedback, vec3 pixel_now, float start_decay, float late_persistence, float motion_blur_cancel) {
+   //start_decay: is the initial decay, the fast one: 1.0 means instantaneous, try around 0.8
+   //end decay the higher, the more the persistance in the long run, try around 1.0;
+   //motion_blur_cancel: 0.0 means full blur on bright areas; try around 2.5
+
+   vec3 diff=(feedback - pixel_now);
+
+   vec3 speed_fast = diff * start_decay;
+   vec3 speed_slow = diff / (late_persistence+eps);
+      
+   vec3 fade_speed = mix(speed_slow, speed_fast, diff );
+   
+   //higher speed is needed when composing over brighter colors to avoid motion blur
+   fade_speed = fade_speed + (pixel_now*motion_blur_cancel);
+   
+   //Ensure a minimum speed to reach 0.0 and clamp to 1.0 to avoid funky effects
+   float min_speed = 0.05  ;
+   fade_speed=clamp(fade_speed, min_speed, 1.0);
+   
+
+   //Compute the persistent light by mixing pixel current and previous one
+   vec3 pixel_persistent = mix(feedback, pixel_now, fade_speed );  
+   
+   //blend only if we are fading out
+      vec3 light_fading_out = vec3(greaterThan(feedback, pixel_now));
+      return mix(pixel_now, pixel_persistent, light_fading_out);
+   }
+   
+
+
 void main() {
-   vec3 pixel_in = texture(Source, vTexCoord).rgb;
+   vec2 co = vTexCoord;
+   #ifndef D3D_WORKAROUND
+      float shake = texture(avglum_passFeedback, RESSWITCH_SAMPLING_POINT).a;
+      co.y += sin(shake * 2 * pi) * RESSWITCH_GLITCH_SIZE;
+   #endif
+
+   vec3 pixel_in = texture(Source, co).rgb;
    vec3 pixel_out = pixel_in;
    //This will go into alpha channel to make glow aware of it and blur more.
    //It could be configurable.
@@ -252,9 +423,10 @@ void main() {
 
    if (DO_NTSC_ARTIFACTS > 0.5) {
       //Get ntsc picture
-         vec4 ntsc_decoded = ntscdec(vTexCoord, pixel_in);
+         vec4 ntsc_decoded = ntscdec(co, pixel_in);
       //apply the minimum treshold to artifact mask
          artifact_mask = smoothstep(NTSC_ARTF_TRSH, 1.0, ntsc_decoded.a);
+         ntsc_decoded = clamp(ntsc_decoded, vec4(0.0), vec4(1.0));
 
       //Optionally completely cut-off artifacts under treshold:
          ntsc_decoded = mix(ntsc_decoded, vec4(pixel_in, 0.0) , (1-artifact_mask)*NTSC_ARTF_ZAP );
@@ -265,9 +437,13 @@ void main() {
             artifact_mask *= 2.0;
             
       pixel_out = ntsc_decoded.rgb;
+      
+   } else if (DO_DEDITHER > 0.5) {
+      //vec3 pixel_dedither(vec2 coords, vec4 sourcesize, float tmin, float tmax, float strength) {
+      float tmin = 0.0;
+      pixel_out = pixel_dedither(Source, co, params.SourceSize, tmin, DEDITHER_TRESHMAX, DEDITHER_STRENGTH, DEDITHER_STRENGTH2);
    }
 
-  
    
    #ifdef DEBUG
       //Cant "debug" ntsc artifacts because it samples from source (original)
@@ -279,7 +455,7 @@ void main() {
       pixel_out = color_tools(pixel_out, vTemperature_rgb);
 
    if (DO_DOT_MATRIX + DOT_M_MBLUR_STR > 1.0) {
-      vec3 feedback = texture(colortools_and_ntsc_passFeedback, vTexCoord).rgb;
+      vec3 feedback = texture(colortools_and_ntsc_passFeedback, co).rgb;
       
       vec3 m_blur_adapted = vec3(DOT_M_MBLUR_STR);
 
@@ -295,21 +471,40 @@ void main() {
       pixel_out = mix(pixel_out, feedback, m_blur_adapted  );
    }
    
- /*  
+
+   /*if (mod(  floor(co.y * params.OutputSize.y) , 2.0) == 0.0)
+      if (mod(params.FrameCount , 2.0) == 0.0)
+      pixel_out = vec3(0.0);
+      
+     if (mod( floor(co.y * params.OutputSize.y), 2.0) != 0.0)
+      if (mod(params.FrameCount , 2.0) != 0.0)
+      pixel_out = vec3(0.0);    
+   */
+
+   if (DO_PPERSISTENCE == 1.0) {
+      //persistence(vec3 feedback, vec3 pixel_now, float start_decay, float end_decay, float motion_blur_cancel) {
+      vec3 feedback = texture(colortools_and_ntsc_passFeedback, co).rgb;
+      float motion_blur_cancel = 2.5;
+      pixel_out = persistence(feedback, pixel_out, PPERSISTENCE_START, PPERSISTENCE_END, motion_blur_cancel);
+   }
+ 
+
     //TEST adaptive strobe:
-    
-    float range = ALT_BLANK_STRENGTH;
+
+   /* float range = 0.1;
+    float period = 1.0;
     float square_wave_time = float(mod(params.FrameCount,  2.0) == 1.0);
     square_wave_time = square_wave_time*2-1;
     vec3 square_wave_time_vec3 = vec3(square_wave_time);
-    square_wave_time_vec3 *= min( pixel_out, 1-pixel_out) * ALT_BLANK_STRENGTH;   
-    if (mod(vTexCoord.y * params.OriginalSize.y, ALT_BLANK_PERIOD) >= ALT_BLANK_PERIOD / 2.0) {;
+    square_wave_time_vec3 *= min( pixel_out, 1-pixel_out) * range;
+    if (mod(co.y * params.OriginalSize.y, period) >= period / 2.0) {;
       pixel_out = pixel_out + square_wave_time_vec3;
     } else {
       pixel_out = pixel_out - square_wave_time_vec3;
     }
 */
-   
+    
+    
    FragColor = vec4(pixel_out, artifact_mask);
    //FragColor = vec4(artifacts);
 }
