@@ -20,11 +20,11 @@
 //#define DEBUG
    //#define DEBUG_COLOR_CALIB
    //#define DEBUG_TIME_FADE
-   #define DEBUG_SOLID_COLOR
+   //#define DEBUG_SOLID_COLOR
    //#define DEBUG_STEP_GRADIENT
    //#define DEBUG_STEP_GRADIENT_V
    //#define DEBUG_BLINK
-   //#define DEBUG_BLINK_CIRCLE
+   #define DEBUG_BLINK_CIRCLE
    //#define DEBUG_WALKING_CIRCLE
    //#define DEBUG_COLORWHEEL
    
@@ -491,18 +491,17 @@ void main() {
 
     //TEST adaptive strobe:
 
-   /* float range = 0.1;
-    float period = 1.0;
+    /*float range = ALT_BLANK_STRENGTH;
     float square_wave_time = float(mod(params.FrameCount,  2.0) == 1.0);
     square_wave_time = square_wave_time*2-1;
     vec3 square_wave_time_vec3 = vec3(square_wave_time);
-    square_wave_time_vec3 *= min( pixel_out, 1-pixel_out) * range;
-    if (mod(co.y * params.OriginalSize.y, period) >= period / 2.0) {;
+    square_wave_time_vec3 *= min( pixel_out, 1-pixel_out) * ALT_BLANK_STRENGTH;
+    if (mod(co.y * params.OriginalSize.y, ALT_BLANK_PERIOD) >= ALT_BLANK_PERIOD / 2.0) {;
       pixel_out = pixel_out + square_wave_time_vec3;
     } else {
       pixel_out = pixel_out - square_wave_time_vec3;
-    }
-*/
+    }*/
+
     
     
    FragColor = vec4(pixel_out, artifact_mask);
