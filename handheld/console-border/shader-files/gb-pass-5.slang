@@ -7,10 +7,12 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	float video_scale;
 	float border_texture_scale;
+	float border_brightness;
 } params;
 
 #pragma parameter video_scale "Video Scale" 3.0 2.0 20.0 1.0
 #pragma parameter border_texture_scale "Border Scale" 4.0 1.0 20.0 0.005
+#pragma parameter border_brightness "Border Brightness" 1.0 0.0 1.0 0.01
 
 vec2 middle	= vec2(0.5, 0.5);
 vec2 border_scale = vec2(3200, 1600) * params.video_scale / params.border_texture_scale;
@@ -47,5 +49,5 @@ void main()
 {
 	vec4 frame	=	texture(Source, vTexCoord).rgba;
 	vec4 border	=	texture(BORDER, tex_border).rgba;
-	FragColor	=	vec4(mix(frame, border, border.a));
+	FragColor	=	vec4(mix(frame, border * params.border_brightness, border.a));
 }
