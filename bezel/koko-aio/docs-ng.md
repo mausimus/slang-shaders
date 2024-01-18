@@ -1,7 +1,7 @@
 **koko-aio-slang documentation**
 
 **RETROARCH OUTPUT DRIVERS**
-    koko-aio does not work on d3d12 and glitches on d3d11 and d3d10.<br>
+    koko-aio does not work by on d3d12 and glitches on d3d11.<br>
     If you absolutely need it (Xbox?), you can edit the file 
     config\config-static.inc<br>
     and turn the line:
@@ -11,13 +11,16 @@
     <br>
     Vulkan ang Glcore have no problems, you can test both to see<br>
     which performs better.<br>
-
+    <br>
+    d3d10 is completely unsupported.
+    <br>
 
 **USEFUL LOCATIONS/FILES:**
 
     config/config-static.inc:
         Some shader parameters can't be changed within retroarch,
         use this file instead.
+        Notable one is lcd antighosting feature.
         
     config/config-user.txt:
         shader parameters that can be changed within Retroarch.
@@ -37,10 +40,10 @@
         This is the image used to draw the bezel.
         Read further for details.
         
-    
-
+        
+        
 **Color corrections:**<br>
-    Modify luminance, saturation, contrast, brightness and color temperature
+    Modify luminance, saturation, contrast, brightness, color temperature and vibrance
     of the signal, at "input" stage.<br>
     Gamma in correction is applied at ti beginning of the chain,<br>
     Gamma out correction is applied to the final processed picture.<br>
@@ -62,6 +65,16 @@
 
 ** RF Noise:**<br>
     Emulates radio frequency noise with a given strength<br>
+
+** Dedither:**<br>
+    Try to smooth dithering patterns.<br>
+    Enabling dedithering automatically disables  NTSC color artifacts:** generation.
+    
+    Sensitivity: Avoid to dedither "legit" zones by lowering this.
+    Basic search strength: Blends basic dedithering and original image.
+    Extensive search strength: Blends extensive dedithering and original image .
+                               may produce posterization effects.
+    
     
 **CVBS: NTSC color artifacts:**<br>
     Tries to emulate typical NTSC color artifacting without emulating<br>
@@ -95,6 +108,13 @@
     It can be used with RGB shifting and image blurring to give the picture<br>
     an ntsc look without dealing with specific encoding/decoding stuffs. <br>
 
+**Persistence of phosphors:**<br>
+    This emulates the unexcited phosphors that continue to emit light.
+
+    Early decay: is the immediate light cut after the phosphor is no more/less excited.
+    Late persistence: modulates the time the residual light will stay on screen
+    
+    
 **Deconvergence:**<br>
     Shift R,G,B components separately to mimic channel deconvergence.<br>
     By varying Red, Green and Blue offsets, the relative component will be<br>
@@ -124,6 +144,35 @@
 **Tate mode:**<br>
     Rotates mask and scanlines by 90°<br>
         
+**Glitch if vertical resolution changes:**<br>
+    Emulates the crt circuits syncing to the new signal timing.<br>
+    Will shake the screen for a while when the resolution changes.<br>
+    The Hiher the value, the more the amplitude.
+    
+**Hi-resolution scanlines handling:**<br>
+        There you can choose how to handle scanlines when a content is Hi-Resolution.<br>
+        Special handling may be needed to mitigate glitches/moire at 1080p or lower resolutions.
+        
+    Consider Hi-Resolution above # lines:
+        A value of 0.0 means that it will never consider anything hi-res.
+        A value of 1.0 means that it will always consider content hi-res.
+        With values > 1.0, it will consider a frame as Hi-resolution if the lines number is above the configured value.
+
+    Hi-Res scanlines type
+      -1: Use a number of scanlines that perfectly fits the screen, a good glitches/moire free tradeoff.
+      -2: As above, but tighter (~1.5x), another good glitches/moire free tradeoff.
+       0: Use interlaced scanlines, may need >1080p screen to avoid moire or weavy glitches
+       1: Avoid drawing scanlines gaps at all.
+       2: Use scanlines, but don't interlace them (bad for 1080p and lower resolutions)
+
+    Scanlines flicker (0=off,1=on,2=if Hi-res):
+        This setting emulates the flickering issues present on crt interlaced screens
+        where the brighter lines flickers when they are near dark ones.
+        You can choose to produce the flickering: never, always or only 
+        when the input picture is considered High resolution.
+    Interlace Flicker power: The strength of the effect.
+        
+        
 **Low level phosphor grid:**<br>
     This is a way to produce horizontal masks, scanlines and aperturegrille/slotmasks.<br>
     Parameters are tricky to setup, but possibilities are mny more quality is good at 1080p<br>
@@ -136,6 +185,65 @@
           It may cause moiree if combined with curvature, dedot, or sparkling look punch.
         Values < 1.0 tend to nullify the whole mask effect.
         
+        
+    Scanlines (*4)
+            Scanlines emulation, set the strength of the effect here.
+        Double-scan low input resolutions
+            Activate this if you want to double the number of scanlines when the content is low-res.
+            "low-res is defined via "Consider Hi-Resolution above # lines" parameter above.
+            This option is useful if you want to emulate 30khz VGA CRT monitors.
+            If you are on 1080p or lower, consider to activate 
+            Fake integer scanlines or integer scaling.
+        Use fake integer scanlines
+            Use a number of scanlines that perfectly fits the lines on the screen, not accurate,
+            but avoids moire and weavy artifacts.
+            A negative value will cause the shader to choose when it is appropriate to activate them.
+              The decision will be based on the ratio of output dimensions and the core.
+        Phosphors height Min, Max:
+            Try to keep scanline height between those values, depending on content brightness.
+        Phosphors width min->max gamma:
+            Since emulating phosphors with high Min-Max range changes the apparent gamma of the final image,
+            it is advised, if needed, to use this option to compensate, instead of the main gamma correction.
+            It is also a quick way to make the image brighter or darker.
+        Inter-line extra steepness (for integer scaling)
+            When you set maximum height to anything > 0.5, the phosphor light will bleed over
+            the adiacent (up/down) ones so that they will start to blend togheter.
+            This option will avoid the bleeding.
+            You may want them to blend or not, depending on your preference to keep scanlines separated.
+            This function is useful when you want to emulate handhelds screens using integer scaling, 
+            where cells are well separated.
+        Anti-moire sweet spot:
+            When dealing with curvature and deep scanlines gaps, moire patterns could appear on screen.
+            This setting staggers screen phosphors by the configured amount and that halps in mitigating
+            the disturbing effect.
+            I observed that a value of 0.17 does a good job for low-res content rendered at 1080p height.
+            Any value > 0.0 disables the, following functions: Slotmask(fake) and Deconvergence Y
+        Slotmask(fake) offset(*):
+            This will cause every cell to be vertically shifted by the configured amount to
+            emulate a slotmask phosphors layout.
+            It is true that for accurate reproduction of them, slotmasks are commonly emulated
+            at screen size, but this causes, on low resolution displays, weird artifacts,
+            primarily when using curvature and when you try to draw scanlines -and- slotmasks.
+            Here there is an added value given by the fact that the shift itself
+            can be relative to not only to the screen pixel height, but to game pixel height. (**)
+            By selecting Y resolution=0 (so core coordinates**) and enabling this slotmask offset,
+            you will have a staggered scanline.
+            This allows you to not drawing a scanline -and- a slotmask, but to draw a "slotmasked"
+            scanline.
+            While this does not exist at all in crt technology, it greatly mitigates the artifacts
+            just explained while producing a fairly convincing effect, very similar to a screen
+            with visible scanlines and visible slotmask.
+        Deconvergence Y: R,G,B phosphor" 
+            This emulates Y deconvergence on phosphor level rather than on image level as seen in
+            the previous deconvergence section.
+            Emulating deconvergence here is good because phosphors will be able to brighten the
+            dark gap left by scanlines.
+        Dedot mask between scanlines
+            When using Horizontal masks, you mai notice a disturbing dot pattern left between high
+            scanlines, that's the residual of horizontal mask.
+            Use this parameter to clear it and use it only if needed or it would have counter-effects.
+            Also, mutating dots to straight lines would make moiree more visible when using curvature.
+    
     
     Horizontal mask (rgb subpixel mask strength)
         X resolution: (core or screen) (**):
@@ -185,75 +293,6 @@
             Draw the vertical grid that hosts phosphors.
             This is likely to produce moiree when using X resolution = core
             
-            
-    Scanlines (*4)
-            Scanlines emulation, set the strength of the effect here.
-        Use fake integer scanlines
-            Use a number of scanlines that perfectly fits the lines on the screen, not accurate,
-            but avoids moire and weavy artifacts.
-        Phosphors height Min, Max:
-            Try to keep scanline height between those values, depending on content brightness.
-        Phosphors width min->max gamma:
-            Since emulating phosphors with high Min-Max range changes the apparent gamma of the final image,
-            it is advised, if needed, to use this option to compensate, instead of the main gamma correction.
-            It is also a quick way to make the image brighter or darker.
-        Inter-line extra steepness (for integer scaling)
-            When you set maximum height to anything > 0.5, the phosphor light will bleed over
-            the adiacent (up/down) ones so that they will start to blend togheter.
-            This option will avoid the bleeding.
-            You may want them to blend or not, depending on your preference to keep scanlines separated.
-            This function is useful when you want to emulate handhelds screens using integer scaling, 
-            where cells are well separated.
-        Anti-moire sweet spot:
-            When dealing with curvature and deep scanlines gaps, moire patterns could appear on screen.
-            This setting staggers screen phosphors by the configured amount and that halps in mitigating
-            the disturbing effect.
-            I observed that a value of 0.17 does a good job for low-res content rendered at 1080p height.
-            Any value > 0.0 disables the, following functions: Slotmask(fake) and Deconvergence Y
-        Slotmask(fake) offset(*):
-            This will cause every cell to be vertically shifted by the configured amount to
-            emulate a slotmask phosphors layout.
-            It is true that for accurate reproduction of them, slotmasks are commonly emulated
-            at screen size, but this causes, on low resolution displays, weird artifacts,
-            primarily when using curvature and when you try to draw scanlines -and- slotmasks.
-            Here there is an added value given by the fact that the shift itself
-            can be relative to not only to the screen pixel height, but to game pixel height. (**)
-            By selecting Y resolution=0 (so core coordinates**) and enabling this slotmask offset,
-            you will have a staggered scanline.
-            This allows you to not drawing a scanline -and- a slotmask, but to draw a "slotmasked"
-            scanline.
-            While this does not exist at all in crt technology, it greatly mitigates the artifacts
-            just explained while producing a fairly convincing effect, very similar to a screen
-            with visible scanlines and visible slotmask.
-        Deconvergence Y: R,G,B phosphor" 
-            This emulates Y deconvergence on phosphor level rather than on image level as seen in
-            the previous deconvergence section.
-            Emulating deconvergence here is good because phosphors will be able to brighten the
-            dark gap left by scanlines.
-        Dedot mask between scanlines
-            When using Horizontal masks, you mai notice a disturbing dot pattern left between high
-            scanlines, that's the residual of horizontal mask.
-            Use this parameter to clear it and use it only if needed or it would have counter-effects.
-            Also, mutating dots to straight lines would make moiree more visible when using curvature.
-
-        
-        
-    Interlace + Scanline alternate above # lines:
-        koko-aio will mark a frame as interlaced and will alternate odd/even scanlines
-        at odd/even frames when the number or lines is above the configured value.
-    Interlaced Scanlines? (-1=faker, -1=fake, 0=yes, 1=no):
-       0=yes:   Use interlaced scanlines, may need >1080p screen to avoid moire or weavy artifacts
-       1=no:    You may want to avoid drawing scanlines gaps when interlaced content is found
-      -1=fake:  Use a number of scanlines that perfectly fits the screen, a good glitches free tradeoff.
-      -2=faker: Use a number of scanlines that perfectly fits the screen * 1.5, another good (almost) glitches free tradeoff.
-    Interlace Flicker (0=off,1=on,2=if interlaced):
-        Since we can emulate scanline appearence, here we deal with interlaced content too.
-        This setting emulates the flickering issues present on crt interlaced screens
-        where the brighter lines flickers when they are near dark ones.
-        You can choose to produce the flickering: never, always or only 
-        when the input picture is considered interlaced.
-    Interlace Flicker power: The strength of the effect.
-
     
     Vertical cell Mask:
         The shape of the mask generated ny this function is "boxed", while the one
@@ -286,7 +325,17 @@
             Makes the "Vertical cell Mask" effect more pronunced and "pinchy/Sparky" by highering its contrast.
             Beware, this may produce moiree.
 
+    Shadowmask:
+            Emulates crt's shadowmask, it is advised to turn off "Vertical cell Mask above" for accurate results
+        X staggering
+            how much even rows have to be shifted, probably you want 1.0 or 1.5 here
+            for 2 or 4 sized masks (gm,rgbx,rbgx,wx) use 1.5
+            for 3 sized masks (gmx,rgb,rbg) use 1.0
+        Phosphor height
+            If you are using a very High definition screen, you may want to set this higher than 1.0
+            I also observed nice results by setting this to 3 when using 4 sized masks like rgbx or rbgx.
 
+            
 **Dot matrix emulation:**<br>
     Emulates low refresh "boxed" screens used in old handheld consoles.<br>
     
@@ -443,9 +492,14 @@
         let you view the underlying content.
     Shift(Zoom) Image over X(Y) axis:
         move or zoom the whole background image.
-    Rotate image mode
-        This could be needed when dealing with vertical games.
-        Use -1 to let the shader try to guess if the rotation is needed.
+    Rotate/flip image
+        This could be needed when dealing with vertical games
+        or when the core flips the image for whatever reason.
+        0     =  let the shader try to guess if the game content is rotated.
+        1, -1 = no change
+        >+1   = manual rotation for straight games
+        <-1   = manual rotation for rotated games
+
     Wrap mode:      
         What to do outside the image:
         0  Mirrored repeat because so is configured in main .slangp.
@@ -488,9 +542,10 @@
         Dumb stretch of the visible texture, operates on the whole content, instead of the
         single led.
         Note: To avoid burn-in effects, keep Light Falloff + Led power not too high.
-    Colorize Bezel;
+    Bezel Colorization intensity:
         Allow to add an amount of the ambient light over the bezel frame
-    Colorization size:
+        Please use this only if you are using a bezel.
+    Bezel Colorization Size:
         How much the ambient light should bleed over the monitor.
         Pushing this too high would make it bleed over the tube.
         This is not supported.
@@ -511,9 +566,6 @@
         This internally works by adding the amount of your choice to the alpha channel
         of the foreground image.
         
-**Luminosity tied zoom:**<br>
-    On older CRT monitors, the picture gets bigger when the image was brighter.<br>
-
 **Vignette:**<br>
     Will cause uneven brightness of the image, more at the center,<br>
     less at the edges.<br>
@@ -546,15 +598,21 @@
 **Global shift/zoom image:**<br>
     Zoom and shift everything on screen, but background pictures.<br>
 
+**Luminosity tied zoom:**<br>
+    On older CRT monitors, the picture gets bigger when the image was brighter.<br>
+    Please TURN THIS OFF if you want to use integer scaling, since this obstructs it.
+
 **Override content geometry:**<br>
     Contrary to the global aspect ratio control, this changes only the game geometry.<br>
     Bezel stays the same.<br>
     
     Integer scale:
         Game content zoom height is rounded to nearest integer.
-    Maximum integer scale: 
-        Dont allow integer scaling more than this
-        * beware: the following options in this group overrides the integer scale.
+        Maximum integer scale: 
+            Dont allow integer scaling more than this
+            * beware: the following options in this group overrides the integer scale.
+        Permit integer overscale by:
+            When doing integer scaling, allow the image to be slightly overscanned (goes off screen).
     Aspect:
         Change aspect ratio.
     Vertical/Horizontal position:
@@ -575,7 +633,7 @@
     results when tilting alongside a single axis or when<br>
     using both, but with small values.<br>
     
-    Tilt along X(Y) axis:
+    Tilt along X axis:
         Rotate the image in space
     Fov: Modulates the field of view
     Bezel multiplier:

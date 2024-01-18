@@ -1,3 +1,21 @@
+//	Colorspace conversion matrix for YIQ-to-RGB
+const mat3 YIQ2RGB = mat3(1.000, 1.000, 1.000,
+                          0.956,-0.272,-1.106,
+                          0.621,-0.647, 1.703);
+
+const mat3 RGB2YIQ = mat3(
+         0.2989, 0.5959, 0.2115,
+         0.5870, -0.2744, -0.5229,
+         0.1140, -0.3216, 0.3114);
+
+float need_tate(bool is_rotated) {
+    if ( (TATE == 1.0 && is_rotated) || TATE == 2.0)
+        return 1.0;
+            else
+        return 0.0;
+    //return float(TATE+vIsRotated > 1.001); //<<-- reported problems with amd (?)
+}
+
 vec3 smoothstep_fast(vec3 edge0, vec3 edge1, vec3 x) {
   return clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
 }
@@ -235,7 +253,9 @@ vec3 PrintValueVec3( vec2 vStringCoords, vec2 FragCoord,  float fValue, float fM
 	}
 //REFLECTION RELATED ENDS
 
-	
+
+
+
 vec3 pixel_push_luminance(vec3 c, float strength) {
 	//if (strength == 0.0) return c; //lighter without the check.
 	float whiteness = max(max(c.r, c.g), c.b);
@@ -396,13 +416,26 @@ vec2 zoomout_coords(vec2 in_coords, float zoom_out, float aspect) {
    return (in_coords * zoom) - offset;
 }
 
-bool scanline_have_to_flicker(bool is_interlaced) {
-	float scanline_flickering = DO_PIXELGRID * PIXELGRID_INTR_FLICK_MODE;	
-    return ((scanline_flickering == 1.0) || ((scanline_flickering==2.0) && is_interlaced ));
+
+
+bool need_doublescan() {
+	return
+		(PIXELGRID_DOUBLESCAN == 1.0) && 
+		(params.OriginalSize.y < MIN_LINES_INTERLACED ) ;
 }
 
+
+
 bool is_interlaced() {
-	return (params.OriginalSize.y > MIN_LINES_INTERLACED);
+	return  // Content is interlaced if:
+		(MIN_LINES_INTERLACED) != 0.0 &&  // user wants interlacing
+		(params.OriginalSize.y > MIN_LINES_INTERLACED); //content has a lot of lines
+}
+
+
+bool scanline_have_to_flicker(bool is_interlaced) {
+	float scanline_flickering = PIXELGRID_INTR_FLICK_MODE;	
+    return ((scanline_flickering == 1.0) || ((scanline_flickering==2.0) && is_interlaced ));
 }
 
 bool pixelgrid_h_needed() {
@@ -423,6 +456,7 @@ vec3 scale_to_range_vec3(vec3 x, vec3 dmin, vec3 dmax) {
     //Scales 0..1 range to a..b range
     return ( (dmax-dmin) * x ) + dmin;
 }
+
 vec2 scale_to_range_vec2(vec2 x, float dmin, float dmax) {
     //Scales 0..1 range to a..b range
     return ( (dmax-dmin) * x ) + dmin;
@@ -479,9 +513,8 @@ float random(float power, vec2 seed) {
 }
 
 //The following produces weird results when with dynamic seed like framecount.
-float random_fast(float power, vec2 seed) {
+float random_fast(vec2 seed) {
 	float noise_out = fract(sin(dot(seed.xy, VEC2_RND_A_B)) * RND_C);
-    noise_out = scale_to_range(noise_out, -power, power);
     return noise_out;
 }
 
@@ -697,26 +730,37 @@ float random_fast(float power, vec2 seed) {
 		return scale_coord;
 	}
 	
-	vec2 integer_scale(vec2 in_coords, float target_aspect, bool is_rotated, float uncorrected_aspect) {
-		
-		float raw_in_aspect = params.OriginalSize.x/params.OriginalSize.y;
+	vec2 integer_scale(vec2 in_coords, float target_aspect, bool is_rotated, float do_tate, float uncorrected_aspect) {
+
+		float raw_in_aspect;
+
+		if (do_tate == 1.0) {
+			target_aspect = 1/target_aspect;
+			raw_in_aspect = params.OriginalSize.y/params.OriginalSize.x;
+		} else {
+			raw_in_aspect = params.OriginalSize.x/params.OriginalSize.y;
+		}
+
 		float adapted_aspect = target_aspect / raw_in_aspect;
-		
-		//Keep aspect?
+
+	//Keep aspect?
 			adapted_aspect = mix_step(adapted_aspect, 1.0, uncorrected_aspect);
-			in_coords.x = zoom1D(in_coords.x, adapted_aspect);
+			if (do_tate == 0.0)
+				in_coords.x = zoom1D(in_coords.x, adapted_aspect);
+					else
+				in_coords.y = zoom1D(in_coords.y, adapted_aspect);
 
 		vec2 izoom;
 		if (!is_rotated) {
 			//This is 1X integer zoom:
 			izoom = params.OriginalSize.xy / global.FinalViewportSize.xy;
 			//Find the maximum zoom allowed
-			float int_zoom = floor(global.FinalViewportSize.y / params.OriginalSize.y );
+			float int_zoom = floor(global.FinalViewportSize.y / (params.OriginalSize.y/GAME_GEOM_INT_SCALE_OVR ));
 			int_zoom = clamp(int_zoom, 1.0, GAME_GEOM_INT_SCALE_MAX);
 			izoom *= int_zoom;
 		} else {
 			izoom = params.OriginalSize.xy / global.FinalViewportSize.yx;
-			float int_zoom = floor(global.FinalViewportSize.y / (params.OriginalSize.x * adapted_aspect) );
+			float int_zoom = floor(global.FinalViewportSize.y / (  (params.OriginalSize.x*adapted_aspect)/GAME_GEOM_INT_SCALE_OVR ));
 			int_zoom = clamp(int_zoom, 1.0, GAME_GEOM_INT_SCALE_MAX);
 			izoom *= int_zoom;
 		}
@@ -741,6 +785,12 @@ float random_fast(float power, vec2 seed) {
 	}
 
 	vec2 content_geom_override(vec2 co, float aspect, float in_aspect, float vshift, float hshift, float out_zoom){
+		
+		
+		//cheap cardboard emulation:
+        //co = co*2.0 - vec2(0.0,0.5);
+        //if (co.x > 1.0) co.x -= 1;
+		
 		//Aspect
 		//float bUse_original_aspect = float(aspect < 0.01);
 		float bUse_custom_aspect = step(0.01, aspect);
@@ -1042,11 +1092,43 @@ float get_dyn_zoom(sampler2D tex) {
 }
 
 
-vec2 tilt(vec2 co, float is_rotated, vec2 tilt) {
+vec2 tilt2D(vec2 co, float is_rotated, vec2 tilt) {
 
 	vec2 r_tilt = vec2( mix_step(tilt.x, tilt.y, is_rotated),
 	                    mix_step(tilt.y, -tilt.x, is_rotated)
-);
+					);
+	
+	vec2 tilt_min = 1 - r_tilt;
+	vec2 tilt_max = 1 + r_tilt;
+	
+	// X Tilt
+		float tilt_x_range = scale_to_range(co.y, tilt_min.x, tilt_max.x);
+		co = vec2( zoom1D(co.x, tilt_x_range),
+		           zoom1D(co.y, tilt_x_range)
+			);
+
+		
+	// Y Tilt
+		float tilt_y_range = scale_to_range(co.x, tilt_min.y, tilt_max.y);
+		co = vec2( zoom1D(co.x, tilt_y_range),
+		           zoom1D(co.y, tilt_y_range)
+			);
+	
+	// Aply FOV;
+		vec2 fov = mix(vec2(1.0), vec2(TILT_FOV), abs( tilt.xy ));
+		co = zoomxy(co, mix_step(fov.yx, fov.xy, is_rotated));
+
+		co.xy += mix_step(tilt.yx, -tilt.xy, is_rotated) * 0.5;
+		
+	return co;
+
+}
+	
+vec2 tilt(vec2 co, float is_rotated, float tilt) {
+	
+	vec2 r_tilt = vec2( mix_step(tilt, 0.0, is_rotated),
+	                    mix_step(0.0, -tilt, is_rotated)
+					);
 	
 	vec2 tilt_min = 1 - r_tilt;
 	vec2 tilt_max = 1 + r_tilt;
@@ -1064,14 +1146,15 @@ vec2 tilt(vec2 co, float is_rotated, vec2 tilt) {
 			);
 	
 	// Aply FOV;
-		vec2 fov = mix(vec2(1.0), vec2(TILT_FOV), abs( tilt.xy ));
-		co = zoomxy(co, mix_step(fov.yx, fov.xy, is_rotated));
+		float fov = mix( 1.0, TILT_FOV, abs( tilt ));
+		co = zoomxy(co, vec2(fov) );
 
-		co.xy += mix_step(tilt.yx, -tilt.xy, is_rotated) * 0.4;
+		co.xy += mix_step(  vec2(0.0, tilt),   -vec2(tilt, 0.0), is_rotated) * 0.5;
 		
 	return co;
-
 }
+	
+
 	
 /*bool is_first_outside_rect(vec2 point, vec4 rect) {
 	return (point.x < rect.x || point.x > rect.z ||
@@ -1095,6 +1178,29 @@ bool is_first_outside_rect(vec2 point, vec4 rect) {
 
 
 // COLOR TOOLS
+
+#define W_C_TO_GRAY vec3(0.2125, 0.7154, 0.0721)
+
+float saturation_get(vec3 rgb) {
+    float Cmax = max(max(rgb.r, rgb.g), rgb.b);
+    float Cmin = min(min(rgb.r, rgb.g), rgb.b);
+    return (Cmax - Cmin) / (Cmax+eps);
+}
+
+vec3 saturation_set_gain(vec3 c, float s) {
+    float gray = dot(c, W_C_TO_GRAY);
+    return mix( vec3(gray), c, s);
+}
+
+vec3 vibrance_set(vec3 c, float v) {
+    //Usefult v values from 0.0 to about 4.0
+    float start_saturation = saturation_get(c);
+    float saturation_compressed = pow(start_saturation, v+eps);
+    float saturation_gain = 2 - saturation_compressed;
+    return saturation_set_gain(c, saturation_gain );
+}
+
+
 	vec3 kelvin2rgb(float k) {
 	//Convert kelvin temperature to rgb factors
 	k = clamp(k,1000,40000);
@@ -1119,7 +1225,7 @@ bool is_first_outside_rect(vec2 point, vec4 rect) {
 	return pixel_out/255.0;
 	}
 
-	#define W vec3(0.2125, 0.7154, 0.0721)
+
 	vec3 color_tools(vec3 pixel_out, vec3 Temperature_rgb) {
 	//Apply color corrections to input signal.
 
@@ -1137,7 +1243,7 @@ bool is_first_outside_rect(vec2 point, vec4 rect) {
 		//Colorization for monochrome display on hsv colorspace.
 		//Select different hues for dark and bright pixels and mix them depending on the brightness
 		if (COLOR_MONO_COLORIZE > 0.01) {
-			vec3 pixel_grayscale = vec3(dot(pixel_out.rgb, W));
+			vec3 pixel_grayscale = vec3(dot(pixel_out.rgb, W_C_TO_GRAY));
 			vec3 pixel_in_hsv = rgb2hsv(pixel_grayscale); //FIXME needed? yes, checked.
 			float lum = pixel_in_hsv.z * pixel_in_hsv.z; //<-- looks way better!
 			vec2 bias = mix_step( vec2(0.0, COLOR_MONO_HUE_BIAS), vec2(COLOR_MONO_HUE_BIAS, 0.0), float(COLOR_MONO_HUE_BIAS > 0.0));
@@ -1154,9 +1260,14 @@ bool is_first_outside_rect(vec2 point, vec4 rect) {
 				pixel_out = mix(pixel_out, pixel_rgb_hue12, COLOR_MONO_COLORIZE);
 		}
 
+	//Modify Vibrance
+		if (VIBRANCE > 0.0) {
+			pixel_out.rgb = vibrance_set(pixel_out.rgb, VIBRANCE);
+		}
+		
 	//Modify saturation
 		if (SATURATION != 1.0) {
-			vec3 intensity = vec3(dot(pixel_out.rgb, W));
+			vec3 intensity = vec3(dot(pixel_out.rgb, W_C_TO_GRAY));
 			pixel_out.rgb = mix(intensity, pixel_out.rgb, SATURATION);
 		}
 
@@ -1239,3 +1350,4 @@ vec4 PG_get_hmask_preset_unfloored() {
         return vec4( vec3(0.0), 2); //WX, mask size 2
 
 }
+
