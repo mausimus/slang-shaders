@@ -31,7 +31,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
     uint FrameCount;
 } global;
 
-#pragma parameter RESSWITCH_ENABLE "★ Resolution switch glitch enable? ==>"     1.0  0.0 1.0  1.0
+#pragma parameter RESSWITCH_ENABLE "★ Resolution switch glitch enable? (no d3d11) ==>"     1.0  0.0 1.0  1.0
 #pragma parameter RESSWITCH_GLITCH_TRESHOLD  "    Glitch if vertical resolution changes at least by" 0.1 0.01 1.0 0.01
 #pragma parameter RESSWITCH_GLITCH_SHAKE_MAX "    Shake amplitude"       0.25  0.0 1.0 0.01
 #pragma parameter RESSWITCH_GLITCH_ROT_MAX   "    Tilt amplitude"        0.2  0.0 1.0 0.01
@@ -83,12 +83,17 @@ void main() {
     //SHAKING
         vSwitchres_show_bar = 0.0;
         
+        // d3d11 is unable to access OriginalHistorySize#, it returns vec4(0.0)
+        // do a sanity check:
+        bool skip_glitch = (_3kHIST1.x+_3kHIST1.y) + (_3kHIST2.x+_3kHIST2.y) +
+                           (_3kHIST3.x+_3kHIST3.y) + (_3kHIST4.x+_3kHIST4.y) +
+                           (_3kHIST5.x+_3kHIST5.y) == 0.0;
+
         // Skip a bunch of frames at the beginning to prevent unwanted glitches
         // with flycast core and maybe with fast-forward too.
         
-        if (global.RESSWITCH_ENABLE > 0.5 && global.FrameCount > 10 ) {
+        if (global.RESSWITCH_ENABLE > 0.5 && global.FrameCount > 10 && !skip_glitch) {
             vWobPhase = global.FrameCount * 0.01;
-
             vSwitchres_bar_size = global.RESSWITCH_GLITCH_SHAKE_MAX  * global.RESSWITCH_GLITCH_BAR_SIZE ;
             
             if (changed_enough(_3kHIST0, _3kHIST1)) {
@@ -197,5 +202,4 @@ void main() {
         
         FragColor = texture(Source, co) + switchresglitch * vSwitchres_show_bar;
 
-        
 }
