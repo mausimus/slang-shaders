@@ -3,7 +3,7 @@
 
 layout(push_constant) uniform Push
 {
-  float ntsc_sat,lpass,comb_filter,ofq,luma_rate,mini_hue;
+  float ntsc_sat,lpass,comb_filter,ofq,luma_rate,mini_hue,snes_mode;
 } params;
 
 #pragma parameter comb_filter "Chroma Comb. Filter Str." 0.6 0.0 1.0 0.05
@@ -12,6 +12,7 @@ layout(push_constant) uniform Push
 #pragma parameter mini_hue "Hue Shift" 0.0 -6.3 6.3 0.05
 #pragma parameter ntsc_sat "Saturation" 3.0 0.0 6.0 0.05
 #pragma parameter ofq "Color Clock Frequency Mhz (typical 3.579)" 3.58 0.0 14.32 0.01
+#pragma parameter snes_mode "Snes mode" 0.0 0.0 1.0 1.0
 
 #define comb_filter params.comb_filter
 #define lpass params.lpass
@@ -19,6 +20,7 @@ layout(push_constant) uniform Push
 #define ofq params.ofq
 #define luma_rate params.luma_rate
 #define mini_hue params.mini_hue
+#define snes_mode params.snes_mode
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -86,12 +88,15 @@ for (int n=-3; n<4; n++)
 {
 float p = float(n);   
 float w = exp(-lpass*p*p);
-
+float snes_phase = 0.0;
 // vTexCoord is "time" variable, 52.6μs is time active pixels are displayed
 // 1000000 multiply (osc) /divide (52.6μs) are omitted as they cancel one another
-float carrier    =  (vTexCoord.x * ofq * 52.6 + p)*PI*0.5;
+
+if (snes_mode == 1.0) snes_phase = mod(vTexCoord.y*262.0, 2.0)*PI;
+
+float carrier    =  (vTexCoord.x * ofq * 52.6 + p)*PI*0.5 + snes_phase;
 // every other NTSC line will be 180' shifted
-float carrier_up =  (vTexCoord.x * ofq * 52.6 + p)*PI*0.5 + PI;
+float carrier_up =  carrier + PI;
 
 // lineup and line will cancel chroma/luma one another on comb
 vec3 phase    = vec3(1.0,0.5*cos(carrier+mini_hue)   ,0.5*sin(carrier+mini_hue));
@@ -103,9 +108,9 @@ float line_cur = compo0(p,phase)*w;
 float line_up  = compo1(p,phase_up)*w;
 
 vec3 rgb = vec3(0.0);
-// luma
+// luma comb
 rgb.r = (line_up+line_cur)/2.0;
-// chroma
+// chroma comb
 rgb.gb = vec2(line_cur-(line_up+line_cur)/2.0*comb_filter);
 final += rgb*phasefinal;
 sum += w;
