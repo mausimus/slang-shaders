@@ -11,7 +11,7 @@ layout(push_constant) uniform Push
 #pragma parameter lpass "Luma Low Pass (sharpness)" 0.2 0.0 1.0 0.01
 #pragma parameter mini_hue "Hue Shift" 0.0 -6.3 6.3 0.05
 #pragma parameter ntsc_sat "Saturation" 3.0 0.0 6.0 0.05
-#pragma parameter ofq "Color Clock Frequency Mhz (typical 3.579)" 3.58 0.0 14.32 0.01
+#pragma parameter ofq "Color Clock Frequency Mhz (typical 3.579)" 3.579 0.0 14.32 0.4473
 #pragma parameter snes_mode "Snes mode" 0.0 0.0 1.0 1.0
 
 #define comb_filter params.comb_filter
