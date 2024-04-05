@@ -33,12 +33,17 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
+	float NEDI_E;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
 	mat4 MVP;
 } global;
+
+#pragma parameter NEDI_E "EDGE STRENGTH" 0.55 0.0 1.0 0.05
+
+#define NEDI_E      (1.0-params.NEDI_E)
 
 #define saturate(c) clamp(c, 0.0, 1.0)
 #define lerp(c) mix(c)
@@ -65,9 +70,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #define NEDI_WEIGHT3 2.0
 #define NEDI_N3 24.0
-#define NEDI_E3 0.0
+//#define NEDI_E3 0.0
 
-#define ITERATIONS  3
+#define ITERATIONS  4
 #define WGT   NEDI_WEIGHT3
 
 #define width  (params.SourceSize.x)
@@ -155,7 +160,7 @@ void main()
 	R /= n; r /= n;
 
 	//Calculate a =  R^-1 . r
-	float e = NEDI_E3;
+	float e = NEDI_E;
 	float2 a = solve(R+e*e*I,r+e*e/2.0);
 
 	//Nomalize 'a' (prevents overshoot)
