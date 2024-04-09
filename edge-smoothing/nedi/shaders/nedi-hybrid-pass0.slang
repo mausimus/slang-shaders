@@ -1,7 +1,7 @@
 #version 450
 
 /*
-   NEDI Shader  -  pass0
+   NEDI - Hybrid Shader  -  pass0
 
 // This file is a part of MPDN Extensions.
 // https://github.com/zachsaw/MPDN_Extensions
@@ -24,7 +24,7 @@
 
       http://forum.doom9.org/showthread.php?t=170727
    
-   Ported by Hyllian - 2015.
+   Ported by Hyllian - 2024.
 */
 
 layout(push_constant) uniform Push
@@ -34,6 +34,7 @@ layout(push_constant) uniform Push
     vec4 OutputSize;
     uint FrameCount;
     float NEDI_E;
+    float FALLBACK_FILTER;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -42,8 +43,10 @@ layout(std140, set = 0, binding = 0) uniform UBO
 } global;
 
 #pragma parameter NEDI_E "EDGE STRENGTH" 0.60 0.0 1.0 0.05
+#pragma parameter FALLBACK_FILTER "FALLBACK FILTER (smooth <--> sharp)" 0.0 0.0 3.0 1.0
 
 #define NEDI_E      (1.0-params.NEDI_E)
+#define FALLBACK_FILTER      params.FALLBACK_FILTER
 
 #define saturate(c) clamp(c, 0.0, 1.0)
 #define lerp(c) mix(c)
@@ -77,8 +80,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define width  (params.SourceSize.x)
 #define height (params.SourceSize.y)
 
-#define px (0.49999 / (params.SourceSize.x))
-#define py (0.49999 / (params.SourceSize.y))
+#define px (0.5 / (params.SourceSize.x))
+#define py (0.5 / (params.SourceSize.y))
 
 #define offset NEDI_OFFSET
 //#define offset 0.0
@@ -86,13 +89,46 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define Value(xy) (tex2D(Source,tex+float2(px,py)*(xy)).rgb)//-float4(0.0,0.4999,0.4999,0.0))
 
 #define Get(xy) (dot(Value(xy),float3(.2126, .7152, .0722))+offset)
+
+
 #define Get4(xy) (float2(Get(xy+WGT*dir[0])+Get(xy+WGT*dir[1]),Get(xy+WGT*dir[2])+Get(xy+WGT*dir[3])))
 
 #define sqr(x) (dot(x,x))
 #define I (float2x2(1,0,0,1))
 
+//Conjugate residual 
+float2 solve(float2x2 A,float2 b) {
+    float2 x = vec2(1.0/4.0);
+    float2 r = b - mul(A,x);
+    float2 p = r;
+    float2 Ar = mul(A,r);
+    float2 Ap = Ar;
+    for (int k = 0;k < 2; k++){
+        float a = min(100.,dot(r,Ar)/dot(Ap,Ap));
+        x = x + a*p;
+        float2 rk = r; float2 Ark = Ar;
+        r = r - a*Ap;
+        Ar = mul(A,r);
+        float b = dot(r,Ar)/dot(rk,Ark);
+        p = r + b*p;
+        Ap = Ar + b*Ap;
+    }
+    return x;
+}
+
 //Cramer's method
-float2 solve(float2x2 A,float2 b) { return float2(determinant(float2x2(b,A[1])),determinant(float2x2(A[0],b)))/determinant(A); }
+float2 solvex(float2x2 A,float2 b) { return float2(determinant(float2x2(b,A[1])),determinant(float2x2(A[0],b)))/determinant(A); }
+
+vec4 get_fallback_filter_coeffs()
+{
+    vec4 filter_coeffs = vec4(0.343443361963,0.0122478272965,0.0122478272965,-0.000297611455683); // B-spline
+
+    if (FALLBACK_FILTER == 1.0) filter_coeffs = vec4(0.6863468418,0.0494245166214,0.0494245166214,-0.0847248039069); // Jinc2
+    else if (FALLBACK_FILTER == 2.0) filter_coeffs = vec4(0.650413534366,0.0223491780099,0.0223491780099,-0.0585122208892); // Jinc2 Sharp
+    else if (FALLBACK_FILTER == 3.0) filter_coeffs = vec4(0.5625,-0.0459071979683,-0.0459071979683,-0.0625); // Catmull-Rom
+
+    return filter_coeffs;
+}
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -102,7 +138,7 @@ layout(location = 0) out vec2 vTexCoord;
 void main()
 {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord * 1.00001;
+   vTexCoord = TexCoord;
 }
 
 #pragma stage fragment
@@ -112,7 +148,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
-float2 tex = vTexCoord + float2(0.0, 0.25*params.SourceSize.w);
+float2 tex = vTexCoord + float2(0.0, 0.25/params.SourceSize.y);
 
     float4 c0 = tex2D(Source,tex);
 
@@ -138,27 +174,33 @@ float2 tex = vTexCoord + float2(0.0, 0.25*params.SourceSize.w);
 */
 
     //Define window and directions - original
-    vec2 dir[4] = vec2[4](vec2(-1,-1),vec2(1,1),vec2(-1,1),vec2(1,-1));
-    mat4x2 wind1 = mat4x2(vec2(-1,-1),vec2(1,1),vec2(-1,1),vec2(1,-1));
-    mat4x2 wind2 = mat4x2(vec2(-3,-1),vec2(3,1),vec2(-1,3),vec2(1,-3));
-    mat4x2 wind3 = mat4x2(vec2(-3,1),vec2(3,-1),vec2(1,3),vec2(-1,-3));
-    mat4x2 wind4 = mat4x2(vec2(-3,-3),vec2( 3,3),vec2(-3, 3),vec2(3,-3));
+   vec2 dir[4] = vec2[4](vec2(-1,-1),vec2(1,1),vec2(-1,1),vec2(1,-1));
+   mat4x2 wind1 = mat4x2(vec2(-1,-1),vec2(-1,1),vec2(1,-1),vec2(1,1));
+   mat4x2 wind2 = mat4x2(vec2(-3,-1),vec2(-1,3),vec2(1,-3),vec2(3,1));
+   mat4x2 wind3 = mat4x2(vec2(-1,-3),vec2(-3,1),vec2(3,-1),vec2(1,3));
+   mat4x2 wind4 = mat4x2(vec2(-3,-3),vec2(-3,3),vec2(3,-3),vec2(3,3));
+
     mat4x2 wind[4] = mat4x2[4](wind1, wind2, wind3, wind4);
 
     //Initialization
     float2x2 R = float2x2(0.,0.,0.,0.);
     float2 r = float2(0.,0.);
+    float3 d = float3(0.,0.,0.);
 
-        float m[4] = float[4](NEDI_WEIGHT, 1.0, 1.0, 1.0);
+    //Define weights
+    vec4 fb_filter = get_fallback_filter_coeffs();
+    fb_filter /= dot(fb_filter,vec4(4.0));
+    float w[4] = float[4](4.0, 1.0, 1.0, 1.0);
 
     //Calculate (local) autocorrelation coefficients
     for (int k = 0; k<ITERATIONS; k+= 1){
         float4 y = float4(Get(wind[k][0]),Get(wind[k][1]),Get(wind[k][2]),Get(wind[k][3]));
         float4x2 C = float4x2(Get4(wind[k][0]),Get4(wind[k][1]),Get4(wind[k][2]),Get4(wind[k][3]));
-        R += mul(transpose(C),m[k]*C);
-        r += mul(y,m[k]*C);
+        R += mul(transpose(C),w[k]*C);
+        r += mul(y,w[k]*C);
+        d += fb_filter[k]*(Value(wind[k][0])+Value(wind[k][1])+Value(wind[k][2])+Value(wind[k][3]));
     }
-    
+
     //Normalize
     float n = NEDI_N;
     R /= n; r /= n;
@@ -168,13 +210,28 @@ float2 tex = vTexCoord + float2(0.0, 0.25*params.SourceSize.w);
     float2 a = solve(R+e*e*I,r+e*e/2.0);
 
     //Nomalize 'a' (prevents overshoot)
-    a = .25 + float2(.4999,-.4999)*clamp(a[0]-a[1],-1.0,1.0);
+    a = .25 + float2(.5,-.5)*clamp(a[0]-a[1],-1.0,1.0);
+
+    float3 col0 = Value(dir[0]);
+    float3 col1 = Value(dir[1]);
+    float3 col2 = Value(dir[2]);
+    float3 col3 = Value(dir[3]);
+
+    float3 min_sample = min( min(col0, col1), min(col2, col3) );
+    float3 max_sample = max( max(col0, col1), max(col2, col3) );
+
+    // Allows 5% ringing. Needs more tests.
+    d = clamp(d, 0.95*min_sample, 1.05*max_sample);
 
     //Calculate result
-    float2x3 x = float2x3(Value(dir[0])+Value(dir[1]),Value(dir[2])+Value(dir[3])) * float2x2(a,a);
-    float3 c = float3(x[0].xyz);
+    //float2x3 x = float2x3(Value(dir[0])+Value(dir[1]),Value(dir[2])+Value(dir[3]));
+    float2x3 x = float2x3(col0 + col1, col2 + col3);
+    float3 c = mul(a,x);
 
-    //Skip pixels on wrong grid
-    if (frac(tex.x*width)<0.499999) FragColor = c0;
+    //Fallback to lanczos
+    float t = saturate(1.0-500.0*sqr(x[0]-x[1])); // Diagonal local edge strength
+    c = mix(c, d, smoothstep(0.0, 1.0, t));
+    
+     if (frac(tex.x*width)<0.5) FragColor = c0;
     else FragColor = vec4(c, 1.0);
 }
