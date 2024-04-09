@@ -143,7 +143,7 @@ vec2 get_scale_o2i(vec2 input_size, vec2 output_size, vec4 crop, uint rotation,
             scale_x = floor(scale_x);
         }
     }
-    return output_size.xy / vec2(scale_x, scale_y);
+    return output_size / vec2(scale_x, scale_y);
 }
 
 // From unit output to pixel input space.
