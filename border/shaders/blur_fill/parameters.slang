@@ -7,7 +7,7 @@
 
 #pragma parameter OTHER_SETTINGS "= Other parameters =" 0.0 0.0 1.0 1.0
 #pragma parameter EXTEND_H "Extend the fill horizontally" 0.0 0.0 1.0 1.0
-#pragma parameter EXTEND_V "Extend the fill vertically" 1.0 0.0 1.0 1.0
+#pragma parameter EXTEND_V "Extend the fill vertically" 0.0 0.0 1.0 1.0
 
 #pragma parameter MIRROR_BLUR "Mirror the blur" 0.0 0.0 1.0 1.0
 
