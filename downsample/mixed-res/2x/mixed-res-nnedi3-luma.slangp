@@ -1,0 +1,121 @@
+shaders = "14"
+
+shader0 = "../../shaders/mixed-res/coder.slang"
+wrap_mode0 = "clamp_to_border"
+mipmap_input0 = "false"
+alias0 = ""
+float_framebuffer0 = "false"
+srgb_framebuffer0 = "false"
+scale_type_x0 = "source"
+scale_x0 = "1.000000"
+scale_type_y0 = "source"
+scale_y0 = "1.000000"
+
+shader1 = "../../shaders/mixed-res/hires-tagger.slang"
+filter_linear1 = "true"
+wrap_mode1 = "clamp_to_border"
+mipmap_input1 = "false"
+float_framebuffer1 = "false"
+srgb_framebuffer1 = "false"
+scale_type_x1 = "source"
+scale_x1 = "1.000000"
+scale_type_y1 = "source"
+scale_y1 = "1.000000"
+
+shader2 = "../../shaders/mixed-res/blur-gauss-h.slang"
+filter_linear2 = true
+scale_type_x2 = source
+scale_x2 = 1.0
+scale_type_y2 = source
+scale_y2 = 1.0 
+
+shader3 = "../../shaders/mixed-res/blur-gauss-v.slang"
+filter_linear3 = true
+alias3 = "HiresSource"
+scale_type_x3 = source
+scale_x3 = 1.0
+scale_type_y3 = source
+scale_y3 = 1.0
+
+shader4 = "../../shaders/mixed-res/cheap-sharpen-tweaked.slang"
+filter_linear4 = true
+alias4 = ""
+wrap_mode4 = "clamp_to_edge"
+scale_type4 = source
+scale4 = 0.5
+
+shader5 = "../../../edge-smoothing/nnedi3/shaders/rgb-to-yuv.slang"
+filter_linear5 = false
+alias5 = "PassOutput0"
+scale_type5 = source
+scale_x5 = 1.0
+scale_y5 = 1.0
+wrap_mode5 = "clamp_to_edge"
+
+shader6 =  "../../../edge-smoothing/nnedi3/shaders/nnedi3-nns16-win8x4-pass1-luma.slang"
+filter_linear6 =  false
+wrap_mode6 =  "clamp_to_edge"
+srgb_framebuffer6 =  "true"
+scale_type6 =  source
+scale_x6 =  1.0
+scale_y6 =  2.0
+
+shader7 =  "../../../edge-smoothing/nnedi3/shaders/nnedi3-nns16-win8x4-pass2-luma.slang"
+filter_linear7 =  false
+wrap_mode7 =  "clamp_to_edge"
+srgb_framebuffer7 =  "true"
+scale_type7 =  source
+scale_x7 =  2.0
+scale_y7 =  1.0
+
+shader8 =  "../../../edge-smoothing/nnedi3/shaders/jinc2-cshift-luma.slang"
+filter_linear8 =  false
+alias8 = "PassOutput3"
+wrap_mode8 =  "clamp_to_edge"
+srgb_framebuffer8 =  "true"
+scale_type8 =  source
+scale_x8 =  1.0
+scale_y8 =  1.0
+
+shader9 =  "../../../edge-smoothing/nnedi3/shaders/jinc2-on-passoutput0.slang"
+filter_linear9 =  false
+srgb_framebuffer9 =  "true"
+scale_type9 =  source
+scale_x9 =  1.0
+scale_y9 =  1.0
+wrap_mode9 =  "clamp_to_edge"
+
+shader10 =  "../../../edge-smoothing/nnedi3/shaders/yuv-to-rgb-2x.slang"
+filter_linear10 =  false
+srgb_framebuffer10 =  "true"
+scale_type10 =  source
+scale_x10 =  1.0
+scale_y10 =  1.0
+
+shader11 =   "../../../interpolation/shaders/bicubic-x.slang"
+wrap_mode11 =   "clamp_to_edge"
+srgb_framebuffer11 =   "true"
+scale_type_x11 =   "viewport"
+scale_x11 =   "1.000000"
+scale_type_y11 =   "source"
+scale_y11 =   "1.000000"
+
+shader12 =    "../../../interpolation/shaders/bicubic-y.slang"
+filter_linear12 =    false
+wrap_mode12 =    "clamp_to_edge"
+srgb_framebuffer12 =    "true"
+scale_type_x12 =    viewport
+scale_type_y12 =    viewport
+scale12 =    1.0
+
+shader13 =    "../../shaders/mixed-res/output.slang"
+filter_linear13 =    false
+scale_type_x13 =    "source"
+scale_x13 =    "1.000000"
+scale_type_y13 =    "source"
+scale_y13 =    "1.000000"
+
+
+IR_SCALE = "2.0"
+B_TRESH = "0.20"
+
