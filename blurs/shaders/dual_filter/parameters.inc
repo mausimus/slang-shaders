@@ -1,4 +1,4 @@
-// See dual_filter.slang for copyright and other information.
+// See dual_filter.inc for copyright and other information.
 
 // clang-format off
 #pragma parameter DUAL_FILTER_SETTINGS "=== Dual Filter Blur & Bloom v1.1 settings ===" 0.0 0.0 1.0 1.0

@@ -1,4 +1,4 @@
-// See dual_filter.slang for copyright and other information.
+// See dual_filter.inc for copyright and other information.
 
 // Tonemapping following
 // http://filmicworlds.com/blog/filmic-tonemapping-with-piecewise-power-curves/
