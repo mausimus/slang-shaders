@@ -3,7 +3,7 @@
 // clang-format off
 #pragma parameter BLUR_FILL_SETTINGS "=== Blur fill v1.9 settings ===" 0.0 0.0 1.0 1.0
 
-#include "../../../misc/shaders/input_transform/parameters.slang"
+#include "../../../misc/shaders/input_transform/parameters.inc"
 
 #pragma parameter OTHER_SETTINGS "= Other parameters =" 0.0 0.0 1.0 1.0
 #pragma parameter EXTEND_H "Extend the fill horizontally" 0.0 0.0 1.0 1.0

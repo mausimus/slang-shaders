@@ -33,8 +33,8 @@
     v1.0: Initial release.
 */
 
-#include "parameters.slang"
-#include "shared.slang"
+#include "parameters.inc"
+#include "shared.inc"
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;

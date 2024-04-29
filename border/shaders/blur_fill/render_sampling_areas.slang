@@ -2,8 +2,8 @@
 
 // See compose.slang for copyright and other information.
 
-#include "../../../misc/shaders/input_transform/input_transform.slang"
-#include "parameters.slang"
+#include "../../../misc/shaders/input_transform/input_transform.inc"
+#include "parameters.inc"
 
 layout(push_constant) uniform Push {
     vec4 InputSize;

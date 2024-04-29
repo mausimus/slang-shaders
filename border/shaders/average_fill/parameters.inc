@@ -3,7 +3,7 @@
 // clang-format off
 #pragma parameter AVERAGE_FILL_SETTINGS "=== Average fill v1.8 settings ===" 0.0 0.0 1.0 1.0
 
-#include "../../../misc/shaders/input_transform/parameters.slang"
+#include "../../../misc/shaders/input_transform/parameters.inc"
 
 #pragma parameter OTHER_SETTINGS "= Other parameters =" 0.0 0.0 1.0 1.0
 #pragma parameter EXTEND_H "Extend the fill horizontally" 1.0 0.0 1.0 1.0
