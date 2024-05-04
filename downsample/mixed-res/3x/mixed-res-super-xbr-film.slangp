@@ -1,4 +1,4 @@
-shaders = "13"
+shaders = "12"
 
 shader0 = "../../shaders/mixed-res/coder.slang"
 wrap_mode0 = "clamp_to_border"
@@ -42,9 +42,9 @@ filter_linear4 = true
 alias4 = ""
 wrap_mode4 = "clamp_to_edge"
 scale_type4 = source
-scale4 = 0.25
+scale4 = 0.333333
 
-shader5 = "../../../denoisers/shaders/fast-bilateral.slang"
+shader5 = "../../../film/shaders/film-grain.slang"
 filter_linear5 = false
 alias5 = "XbrSource"
 wrap_mode5 = "clamp_to_border"
@@ -95,36 +95,33 @@ srgb_framebuffer9 = "true"
 scale_type9 = viewport
 scale9 = 1.0
 
-shader10 = "../../../warp/shaders/dilation.slang"
-filter_linear10 = "false"
+shader10 = "../../../deblur/shaders/deblur.slang"
+filter_linear10 = "true"
 wrap_mode10 = "clamp_to_border"
 srgb_framebuffer10 = "true"
 scale_type10 = "source"
 scale10 = "1.000000"
 
-shader11 = "../../../deblur/shaders/deblur.slang"
-filter_linear11 = "true"
-wrap_mode11 = "clamp_to_border"
-srgb_framebuffer11 = "true"
-scale_type11 = "source"
-scale11 = "1.000000"
+shader11 =  "../../shaders/mixed-res/output.slang"
+filter_linear11 =  false
+wrap_mode11 =  "clamp_to_border"
+mipmap_input11 =  "false"
+alias11 =  ""
+float_framebuffer11 =  "false"
+srgb_framebuffer11 =  "false"
+scale_type_x11 =  "source"
+scale_x11 =  "1.000000"
+scale_type_y11 =  "source"
+scale_y11 =  "1.000000"
 
-shader12 =  "../../shaders/mixed-res/output.slang"
-filter_linear12 =  false
-wrap_mode12 =  "clamp_to_border"
-scale_type12 =  "source"
-scale12 =  "1.000000"
 
-
-IR_SCALE = "4.0"
-B_TRESH = "0.10"
-XBR_EDGE_STR_P0 = "2.500000"
+IR_SCALE = "3.0"
+B_TRESH = "0.20"
 XBR_WEIGHT = "1.000000"
-XBR_EDGE_STR_P1 = "2.500000"
-DILATION_STRENGTH = "0.300000"
+XBR_EDGE_STR_P1 = "5.000000"
 B = "0.330000"
 C = "0.330000"
 CS_SHARPNESS = "0.200000"
 OFFSET = "3.000000"
-DEBLUR = "2.000000"
+DEBLUR = "3.000000"
 SMART = "1.000000"
