@@ -39,9 +39,8 @@ vec2 Warp_koko(vec2 co, vec2 w, float protrusion) {
     czoom        = mix(czoom, czoom * protrusion, czoom);
     vec2 czoom2d = mix(vec2(1.0), vec2(czoom), w);
     vec2 coff    = mix( vec2(0.0), vec2(0.625), w);
-    return zoomxy(co, coff + czoom2d );
+    return 0.5 + (co - 0.5) / (coff + czoom2d);
 }
-
 
 // cgwg's geom
 // license: GPLv2
