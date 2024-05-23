@@ -105,7 +105,7 @@ vec2 bkwtrans(vec2 xy)
 
 vec2 cgwg_warp(vec2 coord)
 {
-    vec3 stretch = max_scale();
+    vec3 stretch = maxscale();
     coord = (coord - vec2(0.5, 0.5))*aspect*stretch.z + stretch.xy;
     
     return (bkwtrans(coord) /
