@@ -11,7 +11,7 @@ layout(push_constant) uniform Push
 } params;
 
 #pragma parameter B_VIEW "SHOW HIRES DETECTION" 0.0 0.0 1.0 1.0
-#pragma parameter B_TRESH "BLUR THRESHOLD" 0.2 0.0 1.0 0.01
+#pragma parameter B_TRESH "DETECTION THRESHOLD" 0.3 0.0 1.0 0.02
 
 #define B_VIEW params.B_VIEW
 #define B_TRESH params.B_TRESH
@@ -31,7 +31,7 @@ layout(location = 0) out vec2 vTexCoord;
 void main()
 {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord;
+   vTexCoord = TexCoord * 1.0001;
 }
 
 #pragma stage fragment
@@ -39,15 +39,13 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D HiresSource;
+layout(set = 0, binding = 4) uniform sampler2D BlurSource;
 
 void main()
 {
-    vec4 c_a  = texture(HiresSource, vTexCoord);
-
-    float tag = c_a.a;
-
-    vec3 c_hires  = c_a.rgb;
     vec3 c_lowres = texture(Source, vTexCoord).rgb;
+    vec3 c_hires  = texture(HiresSource, vTexCoord).rgb;
+    float    tag  = texture(BlurSource, vTexCoord).a;
 
     vec3 color = mix(c_lowres, mix(c_hires, vec3(0.0, 0.0, dot(c_hires, coder)), B_VIEW), smoothstep(0.0, B_TRESH, tag));
 
