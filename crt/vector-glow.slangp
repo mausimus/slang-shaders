@@ -1,6 +1,6 @@
 shaders = 10
 
-shader0 = ../../stock.slang
+shader0 = ../stock.slang
 scale_type0 = source
 scale0 = 1.0
 filter_linear0 = false
