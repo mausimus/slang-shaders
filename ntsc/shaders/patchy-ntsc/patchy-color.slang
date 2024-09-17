@@ -1059,9 +1059,7 @@ vec3 nesFullPalette(vec2 pos) {
 }
 
 vec3 testPattern(vec2 pos) {
-    if(global.pc_testpattern < 1.5) {
-        return smpteBars(pos);
-    } else if(global.pc_testpattern < 2.5) {
+    if(global.pc_testpattern < 2.5) {
         return colorRamps(pos);
     } else if(global.pc_testpattern < 3.5) {
         return hsvSpectrum(pos, false);
@@ -1070,6 +1068,7 @@ vec3 testPattern(vec2 pos) {
     } else if(global.pc_testpattern < 5.5) {
         return nesFullPalette(pos);
     }
+    else return smpteBars(pos);
 }
 
 // These two sRGB functions are taken from shaders_slang/include/colorspace-tools.h
