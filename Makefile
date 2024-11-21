@@ -9,7 +9,7 @@ install:
 	cp -r ./. $(DESTDIR)$(INSTALLDIR)
 	rm -f $(DESTDIR)$(INSTALLDIR)/Makefile
 	rm -f $(DESTDIR)$(INSTALLDIR)/configure
-	rm -f $(DESTDIR)$(INSTALLDIR)/gitlab-ci.yml
+	rm -f $(DESTDIR)$(INSTALLDIR)/.gitlab-ci.yml
 	rm -rf $(DESTDIR)$(INSTALLDIR)/.git
 
 test-install: all
