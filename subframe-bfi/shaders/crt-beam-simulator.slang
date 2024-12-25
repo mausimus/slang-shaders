@@ -95,7 +95,7 @@ layout(push_constant) uniform Push
 	uint FrameCount;
 	uint TotalSubFrames;
 	uint CurrentSubFrame;
-	float GAIN_VS_BLUR, GAMMA, FPS_DIVISOR;
+	float GAIN_VS_BLUR, GAMMA, FPS_DIVISOR, LCD_ANTI_RETENTION_TOGGLE;
 } params;
 
 //------------------ Constants migrated to runtime params --------------------//
@@ -118,6 +118,9 @@ layout(push_constant) uniform Push
 #pragma parameter FPS_DIVISOR "FPS Divisor (debug)" 1.0 1.0 10.0 1.0
 #define FPS_DIVISOR (1. / params.FPS_DIVISOR)
 //^^ Slow down or speed up the simulation
+
+#pragma parameter LCD_ANTI_RETENTION_TOGGLE "LCD Anti-Retention On/Off" 1.0 0.0 1.0 1.0
+bool LCD_ANTI_RETENTION = bool(params.LCD_ANTI_RETENTION_TOGGLE);
 
 //----------------------------------------------------------------------------//
 
@@ -180,7 +183,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
   //     - Scientific Reason: https://forums.blurbusters.com/viewtopic.php?t=7539 BFI interaction with LCD voltage polarity inversion 
   //     - Known Side effect: You've decoupled the CRT simulators' own VSYNC from the real displays' VSYNC.  But magically, there's no tearing artifacts :-)
   //     - Not needed for OLEDs, safe to turn off, but should be ON by default to be foolproof.
-#define LCD_ANTI_RETENTION  true
+//#define LCD_ANTI_RETENTION  true
+//^^moved to runtime parameter
 #define LCD_INVERSION_COMPENSATION_SLEW 0.001
 
   // CRT SCAN DIRECTION. Can be useful to counteract an OS rotation of your display
