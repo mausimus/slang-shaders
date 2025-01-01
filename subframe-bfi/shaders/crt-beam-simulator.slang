@@ -95,7 +95,7 @@ layout(push_constant) uniform Push
 	uint FrameCount;
 	uint TotalSubFrames;
 	uint CurrentSubFrame;
-	float GAIN_VS_BLUR, GAMMA, FPS_DIVISOR, LCD_ANTI_RETENTION_TOGGLE;
+	float GAIN_VS_BLUR, GAMMA, FPS_DIVISOR, LCD_ANTI_RETENTION_TOGGLE, POS_MOD;
 } params;
 
 //------------------ Constants migrated to runtime params --------------------//
@@ -121,6 +121,9 @@ layout(push_constant) uniform Push
 
 #pragma parameter LCD_ANTI_RETENTION_TOGGLE "LCD Anti-Retention On/Off" 1.0 0.0 1.0 1.0
 bool LCD_ANTI_RETENTION = bool(params.LCD_ANTI_RETENTION_TOGGLE);
+
+#pragma parameter POS_MOD "Raster Position Mod" 0.0 -10.0 10.0 0.01
+#define POS_MOD params.POS_MOD
 
 //----------------------------------------------------------------------------//
 
@@ -381,7 +384,10 @@ vec3 getPixelFromSimulatedCRT(vec2 uv, float crtRasterPos, float crtHzCounter, f
         float overlapCurr  = INTERVAL_OVERLAP(startCurr,  endCurr,  fStart, fEnd);
 
         // Sum all overlaps for final brightness
-        result[ch] = overlapPrev2 + overlapPrev1 + overlapCurr;
+        float tempvar = overlapPrev2 + overlapPrev1 + overlapCurr;
+        if(ch == 0) result.x = tempvar;
+        if(ch == 1) result.y = tempvar;
+        if(ch == 2) result.z = tempvar;
     }
 
     return linear2srgb(result);
@@ -405,7 +411,7 @@ void main()
     float effectiveFrame = floor(float(iFrame) * FPS_DIVISOR);
 
     // Normalized raster position [0..1] representing current position of simulated CRT electron beam
-    float crtRasterPos = mod(effectiveFrame, EFFECTIVE_FRAMES_PER_HZ) / EFFECTIVE_FRAMES_PER_HZ;
+    float crtRasterPos = mod(effectiveFrame, EFFECTIVE_FRAMES_PER_HZ) / EFFECTIVE_FRAMES_PER_HZ + POS_MOD;
 
     // CRT refresh cycle counter
     float crtHzCounter = floor(effectiveFrame / EFFECTIVE_FRAMES_PER_HZ);
