@@ -1,49 +1,30 @@
 // See the main shader file for copyright and other information.
 
-#include "../../../misc/shaders/coverage/coverage.inc"
+// This is the bulk of the shared vertex shader.
+void calculate_lcd_params(vec2 source_size, vec2 output_size, uint rotation, float use_subpx,
+                          uint subpx_orientation, float brightness_boost, vec2 tex_coord,
+                          inout vec4 lcd_subpx_rect1, inout vec4 lcd_subpx_rect2,
+                          inout vec2 subpx_offset_in_px, inout vec2 tx_coord, inout vec2 tx_to_px,
+                          inout vec2 tx_orig_offs) {
+    const vec4 rot_corr = vec4(1.0, 0.0, -1.0, 0.0);
+    subpx_offset_in_px = use_subpx / 3.0 *
+                         vec2(rot_corr[(rotation + subpx_orientation) % 4],
+                              rot_corr[(rotation + subpx_orientation + 3) % 4]);
 
-// As determined by counting pixels on a photo.
-const vec2 subpx_ratio = vec2(0.296, 0.910);
-const vec2 notch_ratio = vec2(0.115, 0.166);
-
-float subpx_coverage(vec4 px_rect, vec2 subpx_orig, vec2 subpx_size,
-                     vec2 notch_size) {
-    return rect_coverage(px_rect, vec4(subpx_orig, subpx_orig + subpx_size)) -
-           rect_coverage(
-               px_rect,
-               vec4(subpx_orig.x, subpx_orig.y + subpx_size.y - notch_size.y,
-                    subpx_orig.x + notch_size.x, subpx_orig.y + subpx_size.y));
-}
-
-vec3 pixel_color(vec4 px_rect, vec2 px_size, vec2 px_orig, float subpx_orig_y,
-                 vec2 subpx_size, vec2 notch_size) {
-    return vec3(
-        subpx_coverage(
-            px_rect,
-            px_orig + vec2(px_size.x / 6.0 - subpx_size.x * 0.5, subpx_orig_y),
-            subpx_size, notch_size),
-        subpx_coverage(
-            px_rect,
-            px_orig + vec2(px_size.x / 2.0 - subpx_size.x * 0.5, subpx_orig_y),
-            subpx_size, notch_size),
-        subpx_coverage(
-            px_rect,
-            px_orig +
-                vec2(5.0 * px_size.x / 6.0 - subpx_size.x * 0.5, subpx_orig_y),
-            subpx_size, notch_size));
-}
-
-// Precomputes all variables needed in the frag shader.
-void auth_gbc_vert_shader(vec2 source_size, vec2 output_size,
-                          float overbrighten, vec2 TexCoord, inout vec4 px_rect,
-                          inout vec2 tx_coord, inout vec2 tx_to_px,
-                          inout vec2 subpx_size, inout vec2 notch_size,
-                          inout float subpx_orig_y) {
-    px_rect = vec4(TexCoord * output_size - 0.5, TexCoord * output_size + 0.5);
-    tx_coord = TexCoord * source_size;
+    tx_coord = tex_coord * source_size;
     tx_to_px = output_size / source_size;
-    subpx_size =
-        tx_to_px * mix(subpx_ratio, vec2(2.0 / 3.0, 1.0), overbrighten);
-    notch_size = tx_to_px * mix(notch_ratio, vec2(0.0), overbrighten);
-    subpx_orig_y = (tx_to_px.y - subpx_size.y) * 0.5;
+
+    // As determined by counting pixels on a photo.
+    const vec2 subpx_ratio = vec2(0.296, 0.910);
+    const vec2 notch_ratio = vec2(0.115, 0.166);
+
+    // Scale the subpixel and notch sizes with the brightness parameter.
+    // The maximally bright numbers are chosen manually.
+    vec2 lcd_subpx_size_in_px = tx_to_px * mix(subpx_ratio, vec2(0.75, 0.93), brightness_boost);
+    vec2 notch_size_in_px = tx_to_px * mix(notch_ratio, vec2(0.29, 0.17), brightness_boost);
+    lcd_subpx_rect1 = vec4(vec2(0.0), lcd_subpx_size_in_px - vec2(0.0, notch_size_in_px.y));
+    lcd_subpx_rect2 =
+        vec4(notch_size_in_px.x, lcd_subpx_size_in_px.y - notch_size_in_px.y, lcd_subpx_size_in_px);
+
+    tx_orig_offs = (tx_to_px - lcd_subpx_size_in_px) * 0.5;
 }
