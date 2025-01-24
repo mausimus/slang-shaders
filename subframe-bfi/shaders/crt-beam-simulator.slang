@@ -95,7 +95,7 @@ layout(push_constant) uniform Push
 	uint FrameCount;
 	uint TotalSubFrames;
 	uint CurrentSubFrame;
-	float GAIN_VS_BLUR, GAMMA, FPS_DIVISOR, LCD_ANTI_RETENTION_TOGGLE, POS_MOD;
+	float GAIN_VS_BLUR, GAMMA, FPS_DIVISOR, LCD_ANTI_RETENTION_TOGGLE, POS_MOD, LCD_INVERSION_COMPENSATION_SLEW;
 } params;
 
 //------------------ Constants migrated to runtime params --------------------//
@@ -105,7 +105,7 @@ layout(push_constant) uniform Push
   //   - 1.0 is unchanged brightness (same as non-CRT, but no blur reduction for brightest pixels, only for dimmer pixels).
   //   - 0.5 is half brightness spread over fewer frames (creates lower MPRT persistence for darker pixels).
   //   - ~0.7 recommended for 240Hz+, ~0.5 recommended for 120Hz due to limited inHz:outHz ratio.
-#pragma parameter GAIN_VS_BLUR "Brightness vs Clarity" 0.7 0.01 1.0 0.1
+#pragma parameter GAIN_VS_BLUR "Brightness vs Clarity" 0.7 0.01 1.0 0.025
 #define GAIN_VS_BLUR params.GAIN_VS_BLUR
 
   // Your display's gamma value. Necessary to prevent horizontal-bands artifacts.
@@ -121,6 +121,9 @@ layout(push_constant) uniform Push
 
 #pragma parameter LCD_ANTI_RETENTION_TOGGLE "LCD Anti-Retention On/Off" 1.0 0.0 1.0 1.0
 bool LCD_ANTI_RETENTION = bool(params.LCD_ANTI_RETENTION_TOGGLE);
+
+#pragma parameter LCD_INVERSION_COMPENSATION_SLEW "LCD Anti-Retention Slew Multiplier" 1.0 0.0 150.0 10.0
+#define LCD_INVERSION_COMPENSATION_SLEW (0.001 * clamp(params.LCD_INVERSION_COMPENSATION_SLEW, 1.0, 1000.0))
 
 #pragma parameter POS_MOD "Raster Position Mod" 0.0 -10.0 10.0 0.01
 #define POS_MOD params.POS_MOD
@@ -188,7 +191,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
   //     - Not needed for OLEDs, safe to turn off, but should be ON by default to be foolproof.
 //#define LCD_ANTI_RETENTION  true
 //^^moved to runtime parameter
-#define LCD_INVERSION_COMPENSATION_SLEW 0.001
+//#define LCD_INVERSION_COMPENSATION_SLEW 0.001
+//^^moved to runtime parameter
 
   // CRT SCAN DIRECTION. Can be useful to counteract an OS rotation of your display
   //   - 1 default (top to bottom), recommended
