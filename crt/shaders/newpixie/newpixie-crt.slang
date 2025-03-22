@@ -64,7 +64,7 @@ layout(push_constant) uniform Push
 #pragma parameter curvature "Curvature" 2.0 0.0001 4.0 0.25
 #pragma parameter wiggle_toggle "Interference" 0.0 0.0 1.0 1.0
 #pragma parameter scanroll "Rolling Scanlines" 1.0 0.0 1.0 1.0
-#pragma parameter vignette "Vignette" 1.0 0.0 1.0 0.05
+#pragma parameter vignette "Vignette" 0.5 0.0 1.0 0.05
 #pragma parameter ghosting "Ghosting" 1.0 0.0 2.0 0.10
 #define gl_FragCoord (vTexCoord.xy * params.OutputSize.xy)
 #define backbuffer accum1

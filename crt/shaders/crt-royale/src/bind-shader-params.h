@@ -230,7 +230,7 @@ static const float gba_gamma = 3.5; //  Irrelevant but necessary to define.
 #define border_darkness global.border_darkness
 #pragma parameter border_compress "Border - Compression" 2.5 1.0 64.0 0.0625
 #define border_compress global.border_compress
-#pragma parameter interlace_detect_toggle "Interlacing - Toggle" 1.0 0.0 1.0 1.0
+#pragma parameter interlace_detect_toggle "Interlacing - Toggle" 0.0 0.0 1.0 1.0
 bool interlace_detect = bool(global.interlace_detect_toggle);
 #pragma parameter interlace_bff "Interlacing - Bottom Field First" 0.0 0.0 1.0 1.0
 //#define interlace_bff global.interlace_bff

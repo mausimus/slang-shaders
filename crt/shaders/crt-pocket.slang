@@ -55,8 +55,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter maskLight "Lottes maskLight" 1.5 0.0 2.0 0.1
 
 #pragma parameter bogus_scan "[ SCANLINE SETTINGS ]" 0.0 0.0 0.0 0.0
+#pragma parameter interlace "Interlace On/Off" 0.0 0.0 1.0 1.0
 
-#pragma parameter interlace "Interlace On/Off" 1.0 0.0 1.0 1.0
 #pragma parameter progress "Force 240p" 0.0 0.0 1.0 1.0  
 #pragma parameter beam1 "Scanline Beam Low" 6.0 1.0 15.0 0.5
 #pragma parameter beam2 "Scanline Beam High" 8.0 1.0 15.0 0.5

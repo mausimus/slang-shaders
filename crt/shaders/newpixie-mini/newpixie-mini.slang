@@ -55,7 +55,7 @@ layout(push_constant) uniform Push
 } params;
 
 #pragma parameter curvature "Curvature" 2.0 0.0001 4.0 0.25
-#pragma parameter vignette "Vignette" 1.0 0.0 1.0 0.05
+#pragma parameter vignette "Vignette" 0.5 0.0 1.0 0.05
 
 #define gl_FragCoord (vTexCoord.xy * params.OutputSize.xy)
 

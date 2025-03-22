@@ -32,7 +32,7 @@ layout(push_constant) uniform Push
 
 // Parameter lines go here:
 #pragma parameter SCANLINE "Scanline Weight" 0.3 0.2 0.6 0.05
-#pragma parameter INTERLACE "Interlacing On/Off" 1.0 0.0 1.0 1.0
+#pragma parameter INTERLACE "Interlacing On/Off" 0.0 0.0 1.0 1.0
 #pragma parameter bogus_msk " [ MASK SETTINGS ] " 0.0 0.0 0.0 0.0
 #pragma parameter M_TYPE "Mask Type: -1:None, 0:CGWG, 1:RGB" 1.0 -1.0 1.0 1.0
 #pragma parameter MSIZE "Mask Size" 1.0 1.0 2.0 1.0
