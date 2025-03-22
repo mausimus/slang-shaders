@@ -214,7 +214,7 @@ vec3 testPattern(vec2 pos) {
         return hsvSpectrum(pos, false);
     } else if(global.pn_test_pattern < 4.5) {
         return hsvSpectrum(pos, true);
-    } else if(global.pn_test_pattern < 5.5) {
+    } else {
         return nesFullPalette(pos);
     }
 }
