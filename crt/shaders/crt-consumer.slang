@@ -43,7 +43,7 @@ layout(push_constant) uniform Push
 #pragma parameter warpy "  Curvature Y" 0.04 0.0 0.12 0.01
 #pragma parameter corner "  Corner size" 0.03 0.0 0.10 0.01
 #pragma parameter smoothness "  Border Smoothness" 400.0 100.0 600.0 5.0
-#pragma parameter inter "Interlacing Toggle" 1.0 0.0 1.0 1.0
+#pragma parameter inter "Interlacing Toggle" 0.0 0.0 1.0 1.0
 #pragma parameter Downscale "Interlacing Downscale Scanlines" 2.0 1.0 8.0 1.0  
 #pragma parameter scanlow "Beam low" 6.0 1.0 15.0 1.0
 #pragma parameter scanhigh "Beam high" 8.0 1.0 15.0 1.0

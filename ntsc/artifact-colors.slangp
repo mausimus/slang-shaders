@@ -1,4 +1,4 @@
-shaders = 5
+shaders = 6
 
 shader0 = ../stock.slang
 alias0 = artifact_colors_refpass
@@ -24,3 +24,6 @@ shader4 = ../ntsc/shaders/artifact-colors/artifact-colors2.slang
 scale4 = 1.0
 scale_type4 = source
 filter_linear4 = false
+
+shader5 = ../stock.slang
+filter_linear5 = false

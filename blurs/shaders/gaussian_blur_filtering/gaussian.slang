@@ -95,7 +95,7 @@ void main()
 	float wx, wy;
 	float wsumx;
 	float wsumy = 0.0;
-	vec3 pixel;
+	vec3 pixel = vec3(0.0);
 	float x;
 	float y = -gbf_SIZEV;
 

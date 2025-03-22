@@ -121,7 +121,7 @@ float gba_gamma = 3.5; //  Irrelevant but necessary to define.
 #define aa_cubic_c global.aa_cubic_c
 #pragma parameter aa_gauss_sigma "AA - Gaussian Sigma" 0.5 0.0625 1.0 0.015625
 #define aa_gauss_sigma global.aa_gauss_sigma
-#pragma parameter interlace_detect_toggle "Interlacing - Toggle" 1.0 0.0 1.0 1.0
+#pragma parameter interlace_detect_toggle "Interlacing - Toggle" 0.0 0.0 1.0 1.0
 bool interlace_detect = bool(global.interlace_detect_toggle);
 #pragma parameter interlace_bff "Interlacing - Bottom Field First" 0.0 0.0 1.0 1.0
 //#define interlace_bff global.interlace_bff
