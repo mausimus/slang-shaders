@@ -61,7 +61,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define maskDark global.maskDark
 #pragma parameter maskLight "Lottes maskLight" 1.5 0.0 2.0 0.1
 #define maskLight global.maskLight
-#pragma parameter interlace "Interlace On/Off" 1.0 0.0 1.0 1.0
+#pragma parameter interlace "Interlace On/Off" 0.0 0.0 1.0 1.0
 #define interlace params.interlace
 #pragma parameter progress "Force 240p" 0.0 0.0 1.0 1.0  
 #define progress params.progress
