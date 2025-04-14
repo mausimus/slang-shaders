@@ -95,7 +95,7 @@ layout(push_constant) uniform Push
 	uint FrameCount;
 	uint TotalSubFrames;
 	uint CurrentSubFrame;
-	float GAIN_VS_BLUR, GAMMA, FPS_DIVISOR, LCD_ANTI_RETENTION_TOGGLE, POS_MOD, LCD_INVERSION_COMPENSATION_SLEW;
+	float GAIN_VS_BLUR, GAMMA, FPS_DIVISOR, LCD_ANTI_RETENTION_TOGGLE, POS_MOD, LCD_INVERSION_COMPENSATION_SLEW, SCAN_DIRECTION;
 } params;
 
 //------------------ Constants migrated to runtime params --------------------//
@@ -127,6 +127,8 @@ bool LCD_ANTI_RETENTION = bool(params.LCD_ANTI_RETENTION_TOGGLE);
 
 #pragma parameter POS_MOD "Raster Position Mod" 0.0 -10.0 10.0 0.01
 #define POS_MOD params.POS_MOD
+
+#pragma parameter SCAN_DIRECTION "Scan Direction (0 = No Scan)" 1.0 0.0 4.0 1.0
 
 //----------------------------------------------------------------------------//
 
@@ -195,12 +197,13 @@ layout(std140, set = 0, binding = 0) uniform UBO
 //^^moved to runtime parameter
 
   // CRT SCAN DIRECTION. Can be useful to counteract an OS rotation of your display
+  //   - 0 no scan
   //   - 1 default (top to bottom), recommended
   //   - 2 reverse (bottom to top)
   //   - 3 portrait (left to right)
   //   - 4 reverse portrait (right to left)
-#define SCAN_DIRECTION 2
-//^^ compensate for RetroArch's weird approach to origin by reversing the scan
+//#define SCAN_DIRECTION 5
+//^^moved to runtime parameter. Compensate for RetroArch's weird approach to origin by reversing the scan
 
 //-------------------------------------------------------------------------------------------------
 // Utility Macros
@@ -247,15 +250,28 @@ vec3 srgb2linear(vec3 c){
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
+layout(location = 1) out float tubePos;
 
 void main()
 {
    gl_Position = global.MVP * Position;
    vTexCoord = TexCoord;
+   
+   if(int(params.SCAN_DIRECTION) == 1){
+      tubePos = vTexCoord.y;}                  // Top to bottom
+   else if (int(params.SCAN_DIRECTION) == 2){
+      tubePos = (1.0 - vTexCoord.y);}          // Bottom to top
+   else if (int(params.SCAN_DIRECTION) == 3){
+      tubePos = vTexCoord.x;}                  // Left to right
+   else if (int(params.SCAN_DIRECTION) == 4){
+      tubePos = (1.0 - vTexCoord.x);}          // Right to left
+   else{
+      tubePos = 0;}                            // No scanning
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
+layout(location = 1) in float tubePos;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -334,16 +350,6 @@ vec3 getPixelFromSimulatedCRT(vec2 uv, float crtRasterPos, float crtHzCounter, f
     vec3 colorPrev2 = pixelPrev2 * brightnessScale;
     vec3 colorPrev1 = pixelPrev1 * brightnessScale;
     vec3 colorCurr  = pixelCurr  * brightnessScale;
-      
-#if SCAN_DIRECTION == 1
-    float tubePos = (1.0 - uv.y);  // Top to bottom
-#elif SCAN_DIRECTION == 2
-    float tubePos = uv.y;          // Bottom to top
-#elif SCAN_DIRECTION == 3
-    float tubePos = uv.x;          // Left to right
-#elif SCAN_DIRECTION == 4
-    float tubePos = (1.0 - uv.x);  // Right to left
-#endif
 
     // Process each color channel independently
     for (int ch = 0; ch < 3; ch++) 
