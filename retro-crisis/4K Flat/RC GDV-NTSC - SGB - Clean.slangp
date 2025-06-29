@@ -2,5 +2,5 @@
 cust_fringing = "0.000000"
 cust_artifacting = "0.000000"
 ntsc_fields = "1.000000"
-ntsc_phase = "4.000000"
+ntsc_phase = "3.000000"
 ntsc_scale = "2.500000"
