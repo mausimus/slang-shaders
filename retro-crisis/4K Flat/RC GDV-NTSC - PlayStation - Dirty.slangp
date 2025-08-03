@@ -1,4 +1,4 @@
-#reference "../4K Flat/RC GDV-NTSC - PlayStation - Clean.slangp"
+#reference "RC GDV-NTSC - PlayStation - Clean.slangp"
 cust_fringing = "1.000000"
 scanline2 = "10.000000"
 maskstr = "0.900000"
