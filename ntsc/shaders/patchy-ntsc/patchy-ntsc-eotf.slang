@@ -193,6 +193,7 @@ vec3 testPatternSplit(vec2 pos) {
     } else if(global.pn_test_pattern < 5.5) {
         return vec3(-43);
     }
+    return vec3(-43);
 }
 
 void main()
