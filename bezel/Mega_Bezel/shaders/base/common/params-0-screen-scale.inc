@@ -151,7 +151,7 @@ float HSM_ROTATE_CORE_IMAGE = global.HSM_ROTATE_CORE_IMAGE;
 #pragma parameter HSM_ASPECT_RATIO_ORIENTATION 						"          Orientation - Auto | Horizontal | Vertical"  0 0 2 1
 float HSM_ASPECT_RATIO_ORIENTATION = global.HSM_ASPECT_RATIO_ORIENTATION;
 
-#pragma parameter HSM_ASPECT_RATIO_MODE 							"         Type - Auto | Explicit | 4:3 | 3:2 | 16:9 | PAR | Full"  0 0 6 1
+#pragma parameter HSM_ASPECT_RATIO_MODE 							"         Type - Auto | Explicit | 4:3 | 3:2 | 16:9 | PAR | Full"  5 0 6 1
 float HSM_ASPECT_RATIO_MODE = global.HSM_ASPECT_RATIO_MODE;
 
 #pragma parameter HSM_ASPECT_RATIO_EXPLICIT							"          Explicit Aspect Ratio (Also Auto Ratio Fallback)"  1.3333 0 8 0.002

@@ -37,7 +37,7 @@
 #pragma parameter DECONVERGE_RADIAL "   Deconverge > Radial Amount¹  (0-None .. -/+ 1-Full)" 0.0 -2.0 2.0 0.05
 
 // Phosphor parameters
-#pragma parameter PHOSPHOR_AMOUNT "·  Phosphor > Amount¹  (0-None .. 1-Full)" 0.5 0.0 1.0 0.05
+#pragma parameter PHOSPHOR_AMOUNT "·  Phosphor > Amount¹  (0-None .. 1-Full)" 0.0 0.0 1.0 0.05
 #pragma parameter PHOSPHOR_DECAY "   Phosphor > Decay  (0-Slow .. 1-Fast)" 0.5 0.0 1.0 0.05
 
 // Halation parameters
