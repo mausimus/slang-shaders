@@ -93,7 +93,7 @@ void main()
 
 	float w;
 	float wsum = 0.0;
-	vec3 pixel;
+	vec3 pixel = vec3(0.0);
 	float n = -gbf_SIZEH;
 
 	vec3 cmax = COMPAT_TEXTURE(Source, tex).rgb;

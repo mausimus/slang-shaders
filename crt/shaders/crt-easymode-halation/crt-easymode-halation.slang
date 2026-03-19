@@ -40,7 +40,7 @@ layout(push_constant) uniform Push
 #pragma parameter GEOM_WARP "Geom Warp" 0.0 0.0 0.1 0.01
 #pragma parameter GEOM_CORNER_SIZE "Geom Corner Size" 0.0 0.0 0.1 0.01
 #pragma parameter GEOM_CORNER_SMOOTH "Geom Corner Smoothness" 150.0 50.0 1000.0 25.0
-#pragma parameter INTERLACING_TOGGLE "Interlacing Toggle" 1.0 0.0 1.0 1.0
+#pragma parameter INTERLACING_TOGGLE "Interlacing Toggle" 0.0 0.0 1.0 1.0
 #pragma parameter HALATION "Halation" 0.03 0.0 1.0 0.01
 #pragma parameter DIFFUSION "Diffusion" 0.0 0.0 1.0 0.01
 #pragma parameter BRIGHTNESS "Brightness" 1.0 0.0 2.0 0.05

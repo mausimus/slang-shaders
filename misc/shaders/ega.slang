@@ -115,7 +115,7 @@ vec3 nearest_rgbi (vec3 original)
   }
   if (palette == 2.0) return rgbi_palette[idx];
   else if (palette == 1.0) return cga_palette[idx];
-  else if (palette == 0.0) return simcga_palette[idx];
+  else return simcga_palette[idx];
  
 }
 
